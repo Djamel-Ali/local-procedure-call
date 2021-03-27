@@ -1,0 +1,9 @@
+# dependency files
+*.d
+
+# object files
+*.o
+
+# binary files
+client
+server
