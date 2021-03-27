@@ -1,5 +1,4 @@
-# COORDONNÉES DES MEMBRES RÉALISATEURS DU PROJET : 
+# Authors: 
 
-## (Prénom, NOM, numéro étudiant, pseudonyme Gitlab):
-## Djamel, ALI, 21964181, @alid
-## Mamadou, BARRY, , @abarry
+- Djamel, ALI, 21964181, @alid
+- Mamadou Alpha, BARRY, 71810070, @abarry
