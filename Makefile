@@ -5,7 +5,8 @@
 # Compiler settings 
 CC = gcc
 CFLAGS = -std=c11 -Wall -g
-LDFLAGS = 
+LDLIBS = -lrt -pthread
+
 
 # Makefile settings 
 APP = client server
@@ -28,7 +29,7 @@ all: $(APP)
 # Builds apps
 $(APP): $(COMOBJ)
 	@echo "* Linking $@ ..."
-	@$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	@$(CC) $^ $(LDLIBS) $(CFLAGS) -o $@
 	@echo "done."
 
 # Creates the dependecy rules
@@ -61,4 +62,6 @@ cleandep:
 	@echo "done."
 
 cleanall: clean cleandep
+	@echo "* cleaning bin ..."
 	@rm -rf $(APP)
+	@echo "done."

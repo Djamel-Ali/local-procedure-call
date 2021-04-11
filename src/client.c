@@ -1,9 +1,6 @@
-#include "include/defs.h"
-#include "include/utils.h"
+#include "include/lpc_client.h"
 
-
-int main(void)
-{
+int main(void) {
   /* code */
   return 0;
 }
