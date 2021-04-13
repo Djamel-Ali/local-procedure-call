@@ -1,12 +1,7 @@
 #ifndef __LPC_CLIENT_H__
 #define __LPC_CLIENT_H__
 
-typedef enum { STRING, DOUBLE, INT, NOP } lpc_type;
-
-typedef struct {
-  int slen;
-  char string[];
-} lpc_string;
+#include "lpc_types.h"
 
 void *lpc_open(const char *name);
 

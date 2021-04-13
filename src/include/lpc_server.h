@@ -1,9 +1,7 @@
 #ifndef __LPC_SERVER_H__
 #define __LPC_SERVER_H__
 
-#include <sys/types.h>
-
-#include "memory.h"
+#include "lpc_memory.h"
 
 typedef struct {
   /**
@@ -34,13 +32,17 @@ typedef struct {
  */
 memory *lpc_create(const char *shmo_name, size_t capacity);
 
+void lpc_free(const char *shmo_name);
+
 /**
- * @brief Retourne le pointeur de fonction correspondant à la fonction [fun_name]
- * si elle existe, NULL sinon
- * 
- * @param fun_name 
- * @return void* 
+ * @brief Retourne le pointeur de fonction correspondant à la fonction
+ * [fun_name] si elle existe, NULL sinon
+ *
+ * @param fun_name
+ * @return void*
  */
-void *lpc_get_fun(const char *fun_name);
+int (*lpc_get_fun(const char *fun_name))(void *);
+
+void lpc_call_fun(memory *mem);
 
 #endif  // __LPC_SERVER_H__
