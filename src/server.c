@@ -10,21 +10,37 @@
 #include "include/lpc_sync.h"
 #include "include/lpc_utils.h"
 
+/**
+ * @brief Bloquer le serveur jusqu'à ce qu'un client écrive dans la 
+ * mémoire [mem]
+ * 
+ * @param mem 
+ */
 void wait_for_call(memory *mem) {
   int rc;
   DEBUG("server[%d]: lock\n", getpid());
+
   rc = pthread_mutex_lock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
+
   DEBUG("server[%d]: acquire lock\n", getpid());
 
   while (!mem->header.call) {
     DEBUG("server[%d]: release lock and wait\n\n", getpid());
+    
     rc = pthread_cond_wait(&mem->header.call_cond, &mem->header.mutex);
     if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_wait", strerror(rc));
+    
     DEBUG("server[%d]: acquire lock after wait\n", getpid());
   }
 }
 
+/**
+ * @brief Reveiller les clients qui attendent une modification de la mémoire 
+ * [mem]
+ * 
+ * @param mem 
+ */
 void notify_response(memory *mem) {
   int rc;
   mem->header.res = 1;
@@ -41,6 +57,13 @@ void notify_response(memory *mem) {
   if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
 }
 
+/**
+ * @brief Assure la communication entre un client spécifique et un prossessus
+ * files du serveur
+ * 
+ * @param mem 
+ * @param shmo_name 
+ */
 void run(memory *mem, char *shmo_name) {
   int rc = pthread_mutex_lock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
