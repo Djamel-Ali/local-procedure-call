@@ -1,7 +1,7 @@
 #ifndef __LPC_CLIENT_H__
 #define __LPC_CLIENT_H__
 
-#include "lpc_types.h"
+#include "lpc_types.h" //  struct lpc_string, enum lpc_type
 
 void *lpc_open(const char *name);
 
