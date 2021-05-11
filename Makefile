@@ -30,7 +30,7 @@ all: $(APP)
 $(APP): $(COMOBJ)
 	@echo "* Linking $@ ..."
 	@$(CC) $^ $(LDLIBS) $(CFLAGS) -o $@
-	@echo "done."
+	@echo "√ done."
 
 # Creates the dependecy rules
 client: client.o 
@@ -52,16 +52,16 @@ server: server.o
 # Cleans complete project
 .PHONY: clean cleanall
 clean:
-	@echo "* cleaning obj ..."
+	@echo "~ cleaning obj ..."
 	@rm -rf $(OBJ) 
-	@echo "done."
+	@echo "√ done."
 
 cleandep:
-	@echo "* cleaning dep ..."
+	@echo "~ cleaning dep ..."
 	@rm -rf $(DEP)
-	@echo "done."
+	@echo "√ done."
 
 cleanall: clean cleandep
-	@echo "* cleaning bin ..."
+	@echo "~ cleaning bin ..."
 	@rm -rf $(APP)
-	@echo "done."
+	@echo "√ done."
