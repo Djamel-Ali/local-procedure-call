@@ -2,6 +2,7 @@
 #include <fcntl.h> // O_RDWR ...
 #include <string.h> // strerror()
 #include <errno.h> // errno
+#include <unistd.h>
 
 #include "include/lpc_client.h"
 #include "include/lpc_utils.h" // prefix_slash, ERREXIT ...
@@ -29,7 +30,44 @@ int lpc_close(void *mem) {
     return 0;
 }
 
-int lpc_call(void *memory, const char *fun_name, ...) {
+int lpc_call(void *pMemory, const char *fun_name, ...) {
+    // local declarations
+    int code;
+
+    // cast to 'memory *'
+    memory * pMem = (memory *)pMemory;
+
+    ///start of mutex to modify the shared pMemory.
+
+    DEBUG("client[%d]: lock\n", getpid());
+    code = pthread_mutex_lock(&pMem->header.mutex);
+    if (code != 0) ERREXIT("pthread_mutex_lock %s\n", strerror(code));
+    DEBUG("client[%d]: acquire lock\n", getpid());
+
+    while (pMem->header.call){
+        DEBUG("client[%d]: release lock and wait\n\n", getpid());
+        code = pthread_cond_wait(&pMem->header.call_cond, &pMem->header.mutex);
+        if (code != 0) ERREXIT("pthread_cond_wait %s\n", strerror(code));
+    }
+    DEBUG("client[%d]: acquire lock after wait\n", getpid());
+
+    /* critic section */
+
+    pMem->header.pid = getpid();
+    //todo: copy args to shared mem 'pMem'
+
+    // ici ça marche aussi sans msync (je ne sais pas encore si c'est important de le laisser !)
+    if ((msync(pMem, sizeof (memory), MS_SYNC)) < 0) ERREXIT("msync %s\n", strerror(errno));
+
+    pMem->header.call = 1; // call == 1 s'il y a une fonction à appeler
+    pMem->header.new = 1; // new == 1 s'il y a un client qui a écrit dans le shared memory
+
+    /* end critic section */
+
+    if ((code = pthread_mutex_unlock(&pMem->header.mutex)) != 0) ERREXIT("pthread_mutex_unlock %s\n", strerror(code));
+    if ((code = pthread_cond_signal(&pMem->header.new_cond))  != 0) ERREXIT("pthread_cond_signal %s\n", strerror(code));
+
+    ///end of mutex (after the shared memory has been modified).
 
     return 0;
 }
