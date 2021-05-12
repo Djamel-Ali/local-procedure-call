@@ -7,9 +7,10 @@
 #define NAMELEN 48
 
 typedef struct {
+    /*les mutex, les conditions pour synchroniser l’accès mémoire de clients et de serveur*/
   pthread_mutex_t mutex;
-  pthread_cond_t call_cond;
-  pthread_cond_t res_cond;
+  pthread_cond_t call_cond; // Condition à vérifier pour pouvoir faire un appel de fonction
+  pthread_cond_t res_cond; // Condition à vérifier pour pouvoir récupérer un/des résultat(s) (d'un appel de fonction)
   pthread_cond_t new_cond;
   pid_t pid;
   int new;  /* new == 1 s'il y a un client qui a écrit dans le shared memory.*/

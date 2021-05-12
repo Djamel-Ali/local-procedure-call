@@ -29,6 +29,29 @@ int lpc_close(void *mem) {
     return 0;
 }
 
-int lpc_call(void *memory, const char *fun_name, ...) { return 0; }
+int lpc_call(void *memory, const char *fun_name, ...) {
 
-lpc_string *lpc_make_string(const char *s, int taille) { return NULL; }
+    return 0;
+}
+
+lpc_string *lpc_make_string(const char *s, int taille) {
+    lpc_string *pLpcString;
+    if (taille > 0 && s == NULL){
+        pLpcString = (lpc_string *)malloc(sizeof(lpc_string) + taille + 1);
+        memset(pLpcString->string, 0, taille + 1);
+        pLpcString->slen = taille;
+    }
+    else if (taille <= 0 && s != NULL){
+        pLpcString = (lpc_string *)malloc(sizeof(lpc_string) + strlen(s) + 1);
+        strncpy(pLpcString->string, s, strlen(s));
+        pLpcString->slen = (int)strlen(s) + 1;
+    }
+    else if (taille > strlen(s) + 1){
+        pLpcString = (lpc_string *)malloc(sizeof(lpc_string) + taille + 1);
+        strncpy(pLpcString->string, s, strlen(s));
+        pLpcString->slen = taille;
+    }
+    else return NULL;
+
+    return pLpcString;
+}
