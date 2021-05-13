@@ -2,11 +2,11 @@
 #define __FUN_HELLO_H__
 
 /**
- * @brief Prend en paramètre un *lpc_string contenant un nom, et construit la
- * chaine "bonjour " suivi du nom. Retourne 0 en cas de succès, -1 sinon.
+ * @brief Prend en paramètre un *lpc_string contenant un nom <name> (généralement C, et construit la
+ * chaine "Bonjour <name>, je suis Serveur <pid_of_current_server>".
  *
- * @return int
+ * @return int (0 in success, else -1)
  */
-int hello(void*);
+int hello(void *);
 
 #endif  // __FUN_HELLO_H__

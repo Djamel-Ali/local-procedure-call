@@ -10,5 +10,5 @@ server
 
 .vscode
 
-# User-specific stuff
+# User-specific stuff (CLion IDE)
 .idea/

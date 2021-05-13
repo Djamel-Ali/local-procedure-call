@@ -9,18 +9,16 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "include/fun_hello.h"
 #include "include/lpc_sync.h"
-#include "include/lpc_types.h"
 #include "include/lpc_utils.h"
 
 static lpc_function FUNCTIONS[] = {{"hello", hello}};
 
 static memory *create_shom(const char *shom_name, size_t size) {
-    char *name = start_with_slash(shom_name);
+    char *name = prefix_slash(shom_name);
 
     int fd = shm_open(name, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
     if (fd < 0) ERREXIT("%s %s\n", "shm_open", strerror(errno));
@@ -53,9 +51,9 @@ static void init_header(memory *mem) {
     if (rc != 0) ERREXIT("%s %s\n", "init_cond", strerror(errno));
 }
 
-memory *lpc_create(const char *shom_name, size_t capacity) {
+memory *lpc_create(const char *shmo_name, size_t capacity) {
     if (capacity < 1) return NULL;
-    memory *mem = create_shom(shom_name, sysconf(_SC_PAGESIZE) * capacity);
+    memory *mem = create_shom(shmo_name, sysconf(_SC_PAGESIZE) * capacity);
     init_header(mem);
     return mem;
 }

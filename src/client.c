@@ -9,7 +9,6 @@
 
 #include "include/lpc_client.h"
 #include "include/lpc_memory.h"
-#include "include/lpc_sync.h"
 #include "include/lpc_utils.h"
 
 int main(int argc, char **argv) {
@@ -18,7 +17,7 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    char *shmo_name = start_with_slash(argv[1]);
+    char *shmo_name = prefix_slash(argv[1]);
     int fd = shm_open(shmo_name, O_RDWR, 0);
     if (fd < 0) ERREXIT("%s %s\n", "shm_open", strerror(errno));
 
@@ -70,10 +69,13 @@ int main(int argc, char **argv) {
         memset(&mem->data, 0, sizeof(mem->data));
         if (++i < 5) {
             char *fun_name = "hello";
-            char *s = "alpha";
+            char *cl = "Client ";
+            size_t len = strlen(cl) + sizeof(pid_t) + 1; // 1 caractère de fin de chaine
+            char *s = malloc(len);
+            snprintf(s, len + 1, "%s%d", cl, getpid());
             memcpy(mem->data.fun_name, fun_name, strlen(fun_name));
 
-            int slen = 20;
+            int slen = 60;
             memcpy(mem->data.params, &slen, sizeof(int));
             memcpy(mem->data.params + sizeof(int), s, strlen(s));
         } else {
