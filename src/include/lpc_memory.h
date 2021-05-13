@@ -3,6 +3,8 @@
 
 #include <pthread.h>
 
+#include "lpc_types.h"
+
 #define PARAMS_SIZE 1024
 #define NAMELEN 48
 
@@ -26,11 +28,6 @@ typedef struct {
 typedef struct {
     char fun_name[NAMELEN]; /*Le nom se termine par le caratère null.*/
     char params[PARAMS_SIZE]; /*liste des paramètres de la fonction (lpc_call)*/
-
-    /*la zone où 'lpc_call' met les données pour la fonction appelée*/
-    int i;
-    double d;
-    lpc_string *s;
 } data;
 
 typedef struct {
