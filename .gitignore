@@ -9,3 +9,6 @@ client
 server
 
 .vscode
+
+# User-specific stuff (CLion IDE)
+.idea/
