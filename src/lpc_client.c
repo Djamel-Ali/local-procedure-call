@@ -29,6 +29,7 @@ int lpc_close(void *mem) {
 
 int lpc_call(void *p_memory, const char *fun_name, ...) {
     // local declarations
+
     int code;
 
     // pointer to the list of parameters of the call
@@ -40,6 +41,7 @@ int lpc_call(void *p_memory, const char *fun_name, ...) {
     // cast to 'memory *'
     memory *p_mem = (memory *) p_memory;
 
+    /* etablir la première connexion */
 ///start of mutex to modify the shared memory (to modify the memory shared with the distributed server.)
 
     DEBUG("client[%d]: lock (to modify the memory shared with the distributed server.)\n", getpid());
@@ -93,7 +95,7 @@ int lpc_call(void *p_memory, const char *fun_name, ...) {
     memory *p_new_memory;
     while (1) {
         p_new_memory = (memory *) lpc_open(shm_name);
-        if (p_new_memory == NULL) ERREXIT("lpc_open : %s", strerror(errno));
+        if (p_new_memory == NULL) ERREXIT("lpc_open : %s\n", strerror(errno));
         break;
     }
     // le client a maintenant un pointeur valide vers la mémoire partagée avec le server enfant
@@ -109,7 +111,7 @@ int lpc_call(void *p_memory, const char *fun_name, ...) {
     // Tant que le server enfant n'a pas encore fait le précédent appel de fonction, on attend ...
     while (p_new_memory->header.call) {
         DEBUG("client[%d]: release lock and wait (for the memory shared with the child server)\n\n", getpid());
-        code = pthread_cond_wait(&p_new_memory->header.new_cond, &p_new_memory->header.mutex);
+        code = pthread_cond_wait(&p_new_memory->header.call_cond, &p_new_memory->header.mutex);
         if (code != 0) ERREXIT("pthread_cond_wait : %s\n", strerror(code));
     }
     DEBUG("client[%d]: acquire lock after wait (for the memory shared with the child server)\n", getpid());
@@ -118,13 +120,13 @@ int lpc_call(void *p_memory, const char *fun_name, ...) {
 
     p_new_memory->header.call = 1; //  prévenir le serveur enfant que le client veut faire un appel à une fonction
 
-    //copy args to shared mem 'p_new_memory'
+    //Preparation to copy args to shared mem 'p_new_memory'
     memset(&p_new_memory->data, 0, sizeof(p_new_memory->data)); // d'abord mettre tout à 0
 
     // copier le nom de la fonction
     memcpy(p_new_memory->data.fun_name, fun_name, strlen(fun_name) + 1);
 
-    // copier les paramètres de la fonction
+    // copier les paramètres de la fonction (les valeurs d'entrée) dans la mémoire partagée
     int insert_index = 0;
     lpc_type *p_current_lpc_type = NULL;
     do {
@@ -156,10 +158,34 @@ int lpc_call(void *p_memory, const char *fun_name, ...) {
 
 /* end critic section */
 
+    /* On libère le mutex (pour laisser le server enfant nous calculer le résultat) */
     if ((code = pthread_mutex_unlock(&p_new_memory->header.mutex)) != 0)
         ERREXIT("pthread_mutex_unlock : %s\n", strerror(code));
+
+    /* On réveille le server enfant */
     if ((code = pthread_cond_signal(&p_new_memory->header.call_cond)) != 0)
         ERREXIT("pthread_cond_signal : %s\n", strerror(code));
+
+///start of mutex to get the results from the shared memory (the memory shared with the child server)
+
+    /* Ce même client doit se suspendre par un appel à pthread_cond_wait POUR RÉCUPÉRER LES RESULTS; */
+    DEBUG("client[%d]: lock (to get the results from the memory shared with the child server)\n", getpid());
+    code = pthread_mutex_lock(&p_new_memory->header.mutex);
+    if (code != 0) ERREXIT("pthread_mutex_lock : %s\n", strerror(code));
+    DEBUG("client[%d]: acquire lock (to get the results from the memory shared with the child server)\n", getpid());
+
+    // Tant que le server enfant n'a pas encore fait le précédent appel de fonction, on attend ...
+    while (!p_new_memory->header.res) {
+        DEBUG("client[%d]: release lock and wait (to get the results from the memory shared with the child server)\n\n", getpid());
+        code = pthread_cond_wait(&p_new_memory->header.res_cond, &p_new_memory->header.mutex);
+        if (code != 0) ERREXIT("pthread_cond_wait : %s\n", strerror(code));
+    }
+    DEBUG("client[%d]: acquire lock after wait (to get the results from the memory shared with the child server)\n", getpid());
+
+    // Copier les résultat vers la mémoire du client
+
+///end of mutex to get the results from the shared memory (the memory shared with the child server)
+
 
 ///end of mutex (to modify the memory shared with the child server; after this shared memory has been modified by client).
 
