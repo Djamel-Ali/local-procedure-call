@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE 500
+
 #include "include/lpc_server.h"
 
 #include <errno.h>
@@ -8,12 +9,10 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "include/fun_hello.h"
 #include "include/lpc_sync.h"
-#include "include/lpc_types.h"
 #include "include/lpc_utils.h"
 
 static lpc_function FUNCTIONS[] = {{"hello", hello}};
@@ -21,7 +20,7 @@ static lpc_function FUNCTIONS[] = {{"hello", hello}};
 static memory *create_shom(const char *shom_name, size_t size) {
   char *name = start_with_slash(shom_name);
 
-  int fd = shm_open(name, O_CREAT | O_TRUNC | O_RDWR, S_IWUSR | S_IRUSR);
+  int fd = shm_open(name, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
   if (fd < 0) ERREXIT("%s %s\n", "shm_open", strerror(errno));
 
   if (ftruncate(fd, size) < 0) ERREXIT("%s %s\n", "ftruncate", strerror(errno));
@@ -37,7 +36,7 @@ static void init_header(memory *mem) {
   mem->header.new = 0;  /* tout client peut écrire dans le shared memory*/
   mem->header.call = 0; /* pas encore de fonction à appeler*/
   mem->header.res = 0;  /* pas de resultat d'appel de fonction*/
-  mem->header.er = 0;
+  mem->header.er = 0;   /*errno == 0*/
   mem->header.rc = 0;
   mem->header.end = 0;
 
@@ -52,16 +51,16 @@ static void init_header(memory *mem) {
   if (rc != 0) ERREXIT("%s %s\n", "init_cond", strerror(errno));
 }
 
-memory *lpc_create(const char *shom_name, size_t capacity) {
+memory *lpc_create(const char *shmo_name, size_t capacity) {
   if (capacity < 1) return NULL;
-  memory *mem = create_shom(shom_name, sysconf(_SC_PAGESIZE) * capacity);
+  memory *mem = create_shom(shmo_name, sysconf(_SC_PAGESIZE) * capacity);
   init_header(mem);
   return mem;
 }
 
 int (*lpc_get_fun(const char *fun_name))(void *) {
   int len = sizeof(FUNCTIONS) / sizeof(lpc_function);
-  for (size_t i = 0; i < len; i++) {
+  for (int i = 0; i < len; i++) {
     if (!strcmp(fun_name, FUNCTIONS[i].fun_name)) {
       return FUNCTIONS[i].fun;
     }

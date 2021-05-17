@@ -5,13 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include "include/lpc_client.h"
 #include "include/lpc_memory.h"
-#include "include/lpc_sync.h"
 #include "include/lpc_utils.h"
 
 int main(int argc, char **argv) {
@@ -21,6 +18,9 @@ int main(int argc, char **argv) {
   }
 
   char *shmo_name = start_with_slash(argv[1]);
+  
+  printf("%s\n", shmo_name); exit(1);
+  
   int fd = shm_open(shmo_name, O_RDWR, 0);
   if (fd < 0) ERREXIT("%s %s\n", "shm_open", strerror(errno));
 
@@ -29,7 +29,6 @@ int main(int argc, char **argv) {
   if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mem", strerror(errno));
 
   int rc;
-  
   /* etablir la première connexion */
 
   DEBUG("client[%d]: lock\n", getpid());
@@ -66,17 +65,21 @@ int main(int argc, char **argv) {
   }
 
   mem = mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mem", strerror(errno));
+  if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mmap", strerror(errno));
 
   int i = 0;
   while (1) {
     memset(&mem->data, 0, sizeof(mem->data));
     if (++i < 5) {
       char *fun_name = "hello";
-      char *s = "alpha";
+      char *cl = "Client ";
+      size_t len =
+          strlen(cl) + sizeof(pid_t) + 1;  // 1 caractère de fin de chaine
+      char *s = malloc(len);
+      snprintf(s, len + 1, "%s%d", cl, getpid());
       memcpy(mem->data.fun_name, fun_name, strlen(fun_name));
 
-      int slen = 20;
+      int slen = 60;
       memcpy(mem->data.params, &slen, sizeof(int));
       memcpy(mem->data.params + sizeof(int), s, strlen(s));
     } else {

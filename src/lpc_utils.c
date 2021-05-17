@@ -4,13 +4,14 @@
 #include <string.h>
 
 char *start_with_slash(const char *str) {
-  int len = strlen(str);
-  char name[NAME_MAX] = {0};
+  size_t len = strlen(str);
+  char *name = calloc(len + 2, sizeof(char));
   name[0] = '/';
-  int j = 1;
-  for (size_t i = 0; i < len, j < NAME_MAX; i++, j++) {
-    if (str[i] != '/') name[j] = str[i];
+  for (size_t i = 0, j = 1; i < len; i++) {
+    if (str[i] != '/') {
+      name[j] = str[i];
+      j++;
+    }
   }
-  name[j] = '\0';
   return name;
 }
