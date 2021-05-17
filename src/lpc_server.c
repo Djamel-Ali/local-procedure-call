@@ -52,8 +52,7 @@ void lpc_init_header(memory *mem) {
   mem->header.rc = 0;
   mem->header.end = 0;
 
-  int rc;
-  rc = init_mutex(&mem->header.mutex);
+  int rc = init_mutex(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "init_mutex", strerror(errno));
 
   rc = init_cond(&mem->header.call_cond);
@@ -61,10 +60,12 @@ void lpc_init_header(memory *mem) {
 
   rc = init_cond(&mem->header.res_cond);
   if (rc != 0) ERREXIT("%s %s\n", "init_cond", strerror(errno));
-  
+
+  rc = init_cond(&mem->header.new_cond);
+  if (rc != 0) ERREXIT("%s %s\n", "init_cond", strerror(errno));
+
   rc = msync(mem, sizeof(memory), MS_SYNC);
   if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
-
 }
 
 void lpc_call_fun(memory *mem) {

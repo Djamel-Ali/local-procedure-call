@@ -11,8 +11,8 @@
 #include "include/lpc_utils.h"
 
 /* Bloquer le serveur jusqu'à ce qu'un client écrive dans la mémoire [mem] */
-void wait_for_call(memory *mem) {
-  DEBUG("server[%d]: wait_for_call\nserver[%d]: lock\n",getpid(), getpid());
+static void wait_for_call(memory *mem) {
+  DEBUG("server[%d]: wait_for_call\nserver[%d]: lock\n", getpid(), getpid());
 
   int rc = pthread_mutex_lock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
@@ -30,7 +30,7 @@ void wait_for_call(memory *mem) {
 }
 
 /* Reveiller les clients qui attendent une modification de la mémoire [mem] */
-void notify_response(memory *mem) {
+static void notify_response(memory *mem) {
   DEBUG("server[%d]: notify_response\n", getpid());
 
   mem->header.res = 1;
@@ -49,22 +49,24 @@ void notify_response(memory *mem) {
 
 /* Assure la communication entre un client spécifique et un prossessus files du
  * serveur */
-void run(memory *mem, char *shmo_name) {
+static void run(memory *mem, char *shmo_name) {
   int rc = pthread_mutex_lock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
 
   /* lire le pid du processus client */
   pid_t pid = mem->header.pid;
 
-  /* signaler qu'un nouveau clients peut écrire dans la mémoire partagée */
+  /* signaler qu'un nouveau client peut écrire dans la mémoire partagée */
   mem->header.new = 0;
   rc = msync(mem, sizeof(memory), MS_SYNC);
   if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
+
   rc = pthread_mutex_unlock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
+
   rc = pthread_cond_signal(&mem->header.new_cond);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
-  
+
   rc = munmap(mem, sizeof(memory));
   if (rc != 0) ERREXIT("%s %s\n", "munmap", strerror(rc));
 
@@ -72,6 +74,8 @@ void run(memory *mem, char *shmo_name) {
   char name[NAME_MAX] = {0};
   snprintf(name, NAME_MAX, "%s%d", shmo_name, pid);
   memory *client_mem = lpc_create(name, 1);
+  lpc_init_header(client_mem);
+  
   DEBUG("server[%d]: create new shared memory %s\n\n", getpid(), name);
 
   /* communiquer avec le client */
@@ -109,7 +113,7 @@ int main(int argc, const char **argv) {
         break;
       default:
         DEBUG("server[%d]: new process child created %d\n", getpid(), pid);
-        
+
         mem->header.new = 1;
         mem->header.call = 0;
         rc = msync(mem, sizeof(memory), MS_SYNC);

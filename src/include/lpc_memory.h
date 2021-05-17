@@ -24,7 +24,7 @@ typedef struct {
   int res;   /* res == 1 s'il y a un resultat à un appel de fonction */
   int rc;    /* valeur retournée par la fonction appelée: 0 ou -1. */
   int er;    /* valeur de errno. */
-  int end;   /* end == 1 pour terminer la communication avec le serveur */ 
+  int end;   /* end == 1 pour terminer la communication avec le serveur */
 
 } header;
 
