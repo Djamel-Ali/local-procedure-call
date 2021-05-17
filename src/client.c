@@ -18,17 +18,16 @@ int main(int argc, char **argv) {
   }
 
   char *shmo_name = start_with_slash(argv[1]);
-  
-  printf("%s\n", shmo_name); exit(1);
-  
+
   int fd = shm_open(shmo_name, O_RDWR, 0);
   if (fd < 0) ERREXIT("%s %s\n", "shm_open", strerror(errno));
 
-  memory *mem;
-  mem = mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  memory *mem =
+      mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mem", strerror(errno));
 
   int rc;
+
   /* etablir la première connexion */
 
   DEBUG("client[%d]: lock\n", getpid());
@@ -50,12 +49,16 @@ int main(int argc, char **argv) {
 
   rc = pthread_mutex_unlock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
+  DEBUG("client[%d]: release lock\n", getpid());
+
   rc = pthread_cond_signal(&mem->header.call_cond);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
 
-  /* attendre que le nouveau shared memory soit crée */
-  munmap(mem, sizeof(memory));
+  rc = munmap(mem, sizeof(memory));
+  if (rc != 0) ERREXIT("%s %s\n", "munmap", strerror(rc));
   close(fd);
+
+  /* attendre que le nouveau shared memory soit crée */
   char name[BUFSIZE] = {0};
   snprintf(name, BUFSIZE, "%s%d", shmo_name, getpid());
   while (1) {
@@ -63,6 +66,7 @@ int main(int argc, char **argv) {
     if (fd != -1) break;
     if (errno != ENOENT) ERREXIT("%s %s\n", "shm_open", strerror(errno));
   }
+  DEBUG("client[%d]: new shared memory created %s\n\n", getpid(), name);
 
   mem = mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mmap", strerror(errno));
@@ -72,16 +76,15 @@ int main(int argc, char **argv) {
     memset(&mem->data, 0, sizeof(mem->data));
     if (++i < 5) {
       char *fun_name = "hello";
-      char *cl = "Client ";
+      char *cl = "client ";
       size_t len =
           strlen(cl) + sizeof(pid_t) + 1;  // 1 caractère de fin de chaine
-      char *s = malloc(len);
-      snprintf(s, len + 1, "%s%d", cl, getpid());
+      char s[len];
+      snprintf(s, len, "%s%d", cl, getpid());
+      int taille = 60;
+      lpc_string *lpc_str = lpc_make_string(s, taille);
       memcpy(mem->data.fun_name, fun_name, strlen(fun_name));
-
-      int slen = 60;
-      memcpy(mem->data.params, &slen, sizeof(int));
-      memcpy(mem->data.params + sizeof(int), s, strlen(s));
+      memcpy(mem->data.params, lpc_str, sizeof(lpc_string) + taille);
     } else {
       mem->header.end = 1;
     }

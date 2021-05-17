@@ -19,6 +19,8 @@ typedef struct {
  * d'échec.*/
 memory *lpc_create(const char *shmo_name, size_t capacity);
 
+void lpc_init_header(memory *mem);
+
 void lpc_free(const char *shmo_name);
 
 /* Retourne le pointeur de fonction correspondant à la fonction

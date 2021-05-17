@@ -78,21 +78,22 @@ int lpc_call(void *pMemory, const char *fun_name, ...) {
 }
 
 lpc_string *lpc_make_string(const char *s, int taille) {
-  lpc_string *pLpcString;
-  if (taille > 0 && s == NULL) {
-    pLpcString = (lpc_string *)malloc(sizeof(lpc_string) + taille + 1);
-    memset(pLpcString->string, 0, taille + 1);
-    pLpcString->slen = taille;
-  } else if (taille <= 0 && s != NULL) {
-    pLpcString = (lpc_string *)malloc(sizeof(lpc_string) + strlen(s) + 1);
-    strncpy(pLpcString->string, s, strlen(s));
-    pLpcString->slen = (int)strlen(s) + 1;
-  } else if (taille > strlen(s) + 1) {
-    pLpcString = (lpc_string *)malloc(sizeof(lpc_string) + taille + 1);
-    strncpy(pLpcString->string, s, strlen(s));
-    pLpcString->slen = taille;
-  } else
-    return NULL;
+  lpc_string *lpc_str = NULL;
 
-  return pLpcString;
+  if (taille > 0 && s == NULL) {
+    lpc_str = (lpc_string *)malloc(sizeof(lpc_string) + taille + 1);
+    memset(lpc_str->string, 0, taille + 1);
+    lpc_str->slen = taille;
+  } else if (taille <= 0 && s != NULL) {
+    int lo = strlen(s);
+    lpc_str = (lpc_string *)malloc(sizeof(lpc_string) + lo + 1);
+    strncpy(lpc_str->string, s, lo);
+    lpc_str->slen = lo;
+  } else if (s != NULL && taille > (int)strlen(s) + 1) {
+    lpc_str = (lpc_string *)malloc(sizeof(lpc_string) + taille + 1);
+    strncpy(lpc_str->string, s, strlen(s));
+    lpc_str->slen = taille;
+  }
+
+  return lpc_str;
 }

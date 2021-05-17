@@ -6,28 +6,24 @@
 #include <sys/types.h>
 #include <unistd.h>  // getpid()
 
-int hello(void *params) {
-  int slen, rc;
-  memcpy(&slen, params, sizeof(int));
-  char str[slen];
-  memcpy(str, params + sizeof(int), slen);
+#include "include/lpc_types.h"
 
-  char *gratting = "Bonjour ";
-  char *suffix = "; je suis : \"Serveur ";
-  size_t size =
-      strlen(gratting) + strlen(str) + strlen(suffix) + sizeof(pid_t) + 1;
-  if (size > slen) {
-    rc = -1;
-    memcpy(params, &rc, sizeof(int));
+int hello(void *params) {
+  lpc_string *lpc_str = (lpc_string *)params;
+
+  char *greeting = "Bonjour ";
+  char *suffix = " ; je suis : \"Serveur ";
+  int size = strlen(greeting) + strlen(lpc_str->string) + strlen(suffix) +
+             sizeof(pid_t) + 3;
+  if (size > lpc_str->slen) {
     errno = ENOMEM;
+    lpc_str->slen = -1;
     return -1;
   }
   char s[size];
-  rc = snprintf(s, size + 4, "%s\"%s\"%s%d\"", gratting, str, suffix,
-                getpid());  // (size + 3 * '\"' + 1car fin de chaine)
-  memset(params, 0, rc);
-  memcpy(params, &rc, sizeof(int));
-  memcpy(params + sizeof(int), s, rc);
-
+  int rc = snprintf(s, size, "%s\"%s\"%s%d", greeting, lpc_str->string,
+                    suffix, getpid());
+  memset(lpc_str->string, 0, lpc_str->slen);
+  memcpy(lpc_str->string, s, rc);
   return 0;
 }

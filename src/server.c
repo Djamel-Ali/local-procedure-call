@@ -12,10 +12,9 @@
 
 /* Bloquer le serveur jusqu'à ce qu'un client écrive dans la mémoire [mem] */
 void wait_for_call(memory *mem) {
-  int rc;
-  DEBUG("server[%d]: lock\n", getpid());
+  DEBUG("server[%d]: wait_for_call\nserver[%d]: lock\n",getpid(), getpid());
 
-  rc = pthread_mutex_lock(&mem->header.mutex);
+  int rc = pthread_mutex_lock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
 
   DEBUG("server[%d]: acquire lock\n", getpid());
@@ -32,11 +31,12 @@ void wait_for_call(memory *mem) {
 
 /* Reveiller les clients qui attendent une modification de la mémoire [mem] */
 void notify_response(memory *mem) {
-  int rc;
+  DEBUG("server[%d]: notify_response\n", getpid());
+
   mem->header.res = 1;
   mem->header.call = 0;
 
-  rc = msync(mem, sizeof(memory), MS_SYNC);
+  int rc = msync(mem, sizeof(memory), MS_SYNC);
   if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
 
   rc = pthread_mutex_unlock(&mem->header.mutex);
@@ -56,18 +56,21 @@ void run(memory *mem, char *shmo_name) {
   /* lire le pid du processus client */
   pid_t pid = mem->header.pid;
 
-  /* signaler que d'autre clients peuvent écrire dans le shared memory */
+  /* signaler qu'un nouveau clients peut écrire dans la mémoire partagée */
   mem->header.new = 0;
   rc = msync(mem, sizeof(memory), MS_SYNC);
   if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
+  rc = pthread_mutex_unlock(&mem->header.mutex);
+  if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
   rc = pthread_cond_signal(&mem->header.new_cond);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
+  
   rc = munmap(mem, sizeof(memory));
   if (rc != 0) ERREXIT("%s %s\n", "munmap", strerror(rc));
 
   /* créer le nouveau shared memory */
-  char name[BUFSIZE] = {0};
-  snprintf(name, BUFSIZE, "%s%d", shmo_name, pid);
+  char name[NAME_MAX] = {0};
+  snprintf(name, NAME_MAX, "%s%d", shmo_name, pid);
   memory *client_mem = lpc_create(name, 1);
   DEBUG("server[%d]: create new shared memory %s\n\n", getpid(), name);
 
@@ -79,6 +82,8 @@ void run(memory *mem, char *shmo_name) {
       DEBUG("server[%d]: end\n\n", getpid());
       exit(EXIT_SUCCESS);
     }
+    lpc_call_fun(client_mem);
+    notify_response(client_mem);
   }
 }
 
@@ -87,23 +92,30 @@ int main(int argc, const char **argv) {
     printf("usage: %s shmo_name\n", argv[0]);
     exit(EXIT_FAILURE);
   }
+
   char *shmo_name = start_with_slash(argv[1]);
   memory *mem = lpc_create(shmo_name, 1);
+  lpc_init_header(mem);
+
   int rc;
+  pid_t pid;
   while (1) {
     wait_for_call(mem);
-    switch (fork()) {
+    switch (pid = fork()) {
       case -1:
         ERREXIT("%s %s\n", "fork", strerror(errno));
       case 0:
         run(mem, shmo_name);
         break;
       default:
+        DEBUG("server[%d]: new process child created %d\n", getpid(), pid);
+        
         mem->header.new = 1;
         mem->header.call = 0;
         rc = msync(mem, sizeof(memory), MS_SYNC);
         if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
 
+        DEBUG("server[%d]: release lock after fork\n\n", getpid());
         rc = pthread_mutex_unlock(&mem->header.mutex);
         if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
         break;
