@@ -29,6 +29,7 @@ int main(int argc, char **argv) {
   if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mem", strerror(errno));
 
   int rc;
+  
   /* etablir la première connexion */
 
   DEBUG("client[%d]: lock\n", getpid());

@@ -21,7 +21,7 @@ static lpc_function FUNCTIONS[] = {{"hello", hello}};
 static memory *create_shom(const char *shom_name, size_t size) {
   char *name = start_with_slash(shom_name);
 
-  int fd = shm_open(name, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
+  int fd = shm_open(name, O_CREAT | O_TRUNC | O_RDWR, S_IWUSR | S_IRUSR);
   if (fd < 0) ERREXIT("%s %s\n", "shm_open", strerror(errno));
 
   if (ftruncate(fd, size) < 0) ERREXIT("%s %s\n", "ftruncate", strerror(errno));

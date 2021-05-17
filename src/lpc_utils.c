@@ -5,13 +5,12 @@
 
 char *start_with_slash(const char *str) {
   int len = strlen(str);
-  //TODO name should not contains /
-  char *name = malloc(len + 1);
+  char name[NAME_MAX] = {0};
   name[0] = '/';
-  memcpy(name + 1, str, len);
-
-  name[len + 1] = '\0';
+  int j = 1;
+  for (size_t i = 0; i < len, j < NAME_MAX; i++, j++) {
+    if (str[i] != '/') name[j] = str[i];
+  }
+  name[j] = '\0';
   return name;
 }
-
-

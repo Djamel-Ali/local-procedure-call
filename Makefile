@@ -4,7 +4,7 @@
 
 # Compiler settings 
 CC = gcc
-CFLAGS = -std=c11 -Wall -g -DLPCDEBUG=1
+CFLAGS = -std=c11 -Wall -Wextra -pedantic -g -DLPCDEBUG=1
 LDLIBS = -lrt -pthread
 
 
@@ -21,7 +21,7 @@ DEP = $(OBJ:%.o=%.d)
 ########################################################################
 ############################## Targets #################################
 ########################################################################
-
+.PHONY: all
 all: $(APP)
 
 ################################ Compiling #############################
@@ -50,7 +50,7 @@ server: server.o
 ################################ Cleaning #############################
 
 # Cleans complete project
-.PHONY: clean cleanall
+.PHONY: clean cleandep cleanall
 clean:
 	@echo "* cleaning obj ..."
 	@rm -rf $(OBJ) 

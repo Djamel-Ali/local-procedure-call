@@ -10,12 +10,7 @@
 #include "include/lpc_sync.h"
 #include "include/lpc_utils.h"
 
-/**
- * @brief Bloquer le serveur jusqu'à ce qu'un client écrive dans la 
- * mémoire [mem]
- * 
- * @param mem 
- */
+/* Bloquer le serveur jusqu'à ce qu'un client écrive dans la mémoire [mem] */
 void wait_for_call(memory *mem) {
   int rc;
   DEBUG("server[%d]: lock\n", getpid());
@@ -35,12 +30,7 @@ void wait_for_call(memory *mem) {
   }
 }
 
-/**
- * @brief Reveiller les clients qui attendent une modification de la mémoire 
- * [mem]
- * 
- * @param mem 
- */
+/* Reveiller les clients qui attendent une modification de la mémoire [mem] */
 void notify_response(memory *mem) {
   int rc;
   mem->header.res = 1;
@@ -57,21 +47,15 @@ void notify_response(memory *mem) {
   if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
 }
 
-/**
- * @brief Assure la communication entre un client spécifique et un prossessus
- * files du serveur
- * 
- * @param mem 
- * @param shmo_name 
- */
+/* Assure la communication entre un client spécifique et un prossessus files du serveur */
 void run(memory *mem, char *shmo_name) {
   int rc = pthread_mutex_lock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
 
-  // lire le pid du processus client
+  /* lire le pid du processus client */
   pid_t pid = mem->header.pid;
 
-  // signaler que d'autre clients peuvent écrire dans le shared memory
+  /* signaler que d'autre clients peuvent écrire dans le shared memory */
   mem->header.new = 0;
   rc = msync(mem, sizeof(memory), MS_SYNC);
   if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
@@ -80,13 +64,13 @@ void run(memory *mem, char *shmo_name) {
   rc = munmap(mem, sizeof(memory));
   if (rc != 0) ERREXIT("%s %s\n", "munmap", strerror(rc));
 
-  // créer le nouveau shared memory
+  /* créer le nouveau shared memory */
   char name[BUFSIZE] = {0};
   snprintf(name, BUFSIZE, "%s%d", shmo_name, pid);
   memory *client_mem = lpc_create(name, 1);
   DEBUG("server[%d]: create new shared memory %s\n\n", getpid(), name);
 
-  // communiquer avec le client
+  /* communiquer avec le client */
   while (1) {
     wait_for_call(client_mem);
     if (client_mem->header.end) {

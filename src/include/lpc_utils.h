@@ -4,6 +4,7 @@
 #include <stdarg.h>
 
 #define BUFSIZE 1024
+#define NAME_MAX 255
 
 #define DEBUG(fmt, ...)                    \
   do {                                     \
@@ -19,6 +20,10 @@
     exit(EXIT_FAILURE);                            \
   } while (0)
 
+/* Assure que [name] commence par un '/' et qu'il ne contient q'un seul '/'.
+ * Si ce n'est pas le cas un '/' est ajouté au début de [name], ou les autres '/'
+ * sont supprimés. 
+ * [name] doit terminer par le caractère nul.*/
 char *start_with_slash(const char *name);
 
 #endif  // __LPC_UTILS_H__
