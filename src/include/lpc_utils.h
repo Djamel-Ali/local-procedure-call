@@ -2,6 +2,8 @@
 #define __LPC_UTILS_H__
 
 #include <stdarg.h>
+#include <stdio.h> // fprintf
+#include <stdlib.h> // exit, EXIT_FAILURE ...
 
 #define BUFSIZE 1024
 
@@ -20,5 +22,6 @@
   } while (0)
 
 char *start_with_slash(const char *name);
+char *prefix_slash(const char *name);
 
 #endif  // __LPC_UTILS_H__
