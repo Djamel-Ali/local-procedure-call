@@ -32,13 +32,14 @@ static memory *create_shom(const char *shom_name, size_t size) {
     return mem;
 }
 
-static void init_header(memory *mem) {
+static void init_header(memory *mem, char *shm_name) {
     mem->header.new = 0;  /* tout client peut écrire dans le shared memory*/
     mem->header.call = 0; /* pas encore de fonction à appeler*/
     mem->header.res = 0;  /* pas de resultat d'appel de fonction*/
     mem->header.er = 0;  /*errno == 0*/
     mem->header.rc = 0;
     mem->header.end = 0;
+    mem->header.shm_name = shm_name;
 
     int rc;
     rc = init_mutex(&mem->header.mutex);
@@ -54,7 +55,7 @@ static void init_header(memory *mem) {
 memory *lpc_create(const char *shmo_name, size_t capacity) {
     if (capacity < 1) return NULL;
     memory *mem = create_shom(shmo_name, sysconf(_SC_PAGESIZE) * capacity);
-    init_header(mem);
+    init_header(mem, NULL);
     return mem;
 }
 
