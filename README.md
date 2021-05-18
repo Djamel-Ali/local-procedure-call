@@ -25,7 +25,7 @@ _(**Attention :** il faut bien sûr donner le même nom **<shmo_name>** que celu
 ```bash
 $>./client <shmo_name>
 ```
-Les programmes **"client"** sont les fichiers exécutables dans le dossier _tests/_.
+Sachant que les programmes **"client"** sont les fichiers exécutables dans le dossier _tests/_.
 
 
 ### Autres règles du Makefile
