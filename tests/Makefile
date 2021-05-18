@@ -4,37 +4,39 @@
 
 # Compiler settings 
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -pedantic -g -DLPCDEBUG=0
-LDLIBS = -lrt -pthread
+CFLAGS = -std=c11 -Wall -Wextra -pedantic -g -DLPCDEBUG=1 `pkg-config --cflags check gmodule-2.0`
+LDLIBS = -lrt -pthread `pkg-config --libs check gmodule-2.0`
+
+
+SRC=$(wildcard *.c)
+SRC_OBJ=$(filter-out ../src/server.o ../src/client.o, $(wildcard ../src/*.o))
+OBJ=$(SRC:.c=.o)
+TESTS=$(SRC:%.c=%)
 
 
 # Makefile settings 
-APP = client server
 EXT = .c
-SRCDIR = src
-
-SRC = $(wildcard $(SRCDIR)/*$(EXT))
-OBJ = $(SRC:$(SRCDIR)/%$(EXT)=%.o)
-COMOBJ = $(filter-out server.o client.o,  $(OBJ))
+SRC = $(wildcard *$(EXT))
+SRC_OBJ=$(filter-out server.o client.o, $(wildcard ../src/*.o))
+OBJ=$(SRC:%.c=%.o)
+TESTS=$(SRC:%.c=%)
 DEP = $(OBJ:%.o=%.d)
 
 ########################################################################
 ############################## Targets #################################
 ########################################################################
 .PHONY: all
-all: $(APP)
+all: 
+	@echo $(OBJ)
+	@echo $(SRC_OBJ)
 
 ################################ Compiling #############################
 
 # Builds apps
-$(APP): $(COMOBJ)
+$(APP): $(OBJ)
 	@echo "* Linking $@ ..."
-	@$(CC) $^ $(LDLIBS) $(CFLAGS) -o $@
-	@echo "√ done."
-
-# Creates the dependecy rules
-client: client.o 
-server: server.o 
+	@$(CC) $^ $(SRC_OBJ) $(LDLIBS) $(CFLAGS) -o $@
+	@echo "done."
 
 %.d: $(SRCDIR)/%$(EXT)
 	@$(CPP) $(CFLAGS) $< -MM -MT $(@:%.d=%.o) >$@
@@ -52,16 +54,16 @@ server: server.o
 # Cleans complete project
 .PHONY: clean cleandep cleanall
 clean:
-	@echo "~ cleaning obj ..."
+	@echo "* cleaning obj ..."
 	@rm -rf $(OBJ) 
-	@echo "√ done."
+	@echo "done."
 
 cleandep:
-	@echo "~ cleaning dep ..."
+	@echo "* cleaning dep ..."
 	@rm -rf $(DEP)
-	@echo "√ done."
+	@echo "done."
 
 cleanall: clean cleandep
-	@echo "~ cleaning bin ..."
+	@echo "* cleaning bin ..."
 	@rm -rf $(APP)
-	@echo "√ done."
+	@echo "done."

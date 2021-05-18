@@ -2,10 +2,11 @@
 #define __LPC_UTILS_H__
 
 #include <stdarg.h>
-#include <stdio.h> // fprintf
-#include <stdlib.h> // exit, EXIT_FAILURE ...
+#include <stdio.h>   // fprintf
+#include <stdlib.h>  // exit, EXIT_FAILURE ...
 
 #define BUFSIZE 1024
+#define NAME_MAX 255
 
 #define DEBUG(fmt, ...)                    \
   do {                                     \
@@ -21,7 +22,8 @@
     exit(EXIT_FAILURE);                            \
   } while (0)
 
+/* Assure que [name] commence par un '/' et qu'il ne contient q'un seul '/'.
+ * Si ce n'est pas le cas un '/' est ajouté au début de [name], ou les autres
+ * '/' sont supprimés. [name] doit terminer par le caractère nul.*/
 char *start_with_slash(const char *name);
-char *prefix_slash(const char *name);
-
 #endif  // __LPC_UTILS_H__
