@@ -14,8 +14,10 @@
 #include "include/fun_hello.h"
 #include "include/lpc_sync.h"
 #include "include/lpc_utils.h"
+#include "include/fun_print_n_times.h"
 
-static lpc_function FUNCTIONS[] = {{"hello", hello}};
+static lpc_function FUNCTIONS[] = {{"hello",         hello},
+                                   {"print_n_times", print_n_times}};
 
 static memory *create_shom(const char *shom_name, size_t size) {
     char *name = prefix_slash(shom_name);

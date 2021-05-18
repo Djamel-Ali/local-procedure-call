@@ -1,216 +1,225 @@
-#include <sys/mman.h> // shm_open ...
-#include <fcntl.h> // O_RDWR ...
-#include <string.h> // strerror()
-#include <errno.h> // errno
+#include "include/lpc_client.h"
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdarg.h>
+#include <string.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
-#include "include/lpc_client.h"
-#include "include/lpc_utils.h" // prefix_slash, ERREXIT ...
-#include "include/lpc_memory.h" // memory
+#include "include/lpc_memory.h"
 #include "include/lpc_types.h"
+#include "include/lpc_utils.h"
 
 void *lpc_open(const char *name) {
-    char *shm_name = prefix_slash(name);
+    char *shm_name = start_with_slash(name);
 
-    int fd;
-    if ((fd = shm_open(shm_name, O_RDWR, 0)) < 0) ERREXIT("shm_open : %s\n", strerror(errno));
+    int fd = shm_open(shm_name, O_RDWR, 0);
+    if (fd < 0) ERREXIT("shm_open : %s\n", strerror(errno));
 
-    memory *p_mem = mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (p_mem == MAP_FAILED) return NULL;
+    memory *mem =
+            mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mem == MAP_FAILED) return NULL;
 
-    return p_mem;
+    return mem;
 }
 
 int lpc_close(void *mem) {
-    if (munmap(mem, sizeof(memory)) < 0) ERREXIT("munmap : %s\n", strerror(errno));
-
+    int rc = munmap(mem, sizeof(memory));
+    if (rc < 0) ERREXIT("munmap : %s\n", strerror(errno));
     return 0;
 }
 
-int lpc_call(void *p_memory, const char *fun_name, ...) {
-    // local declarations
+/* etablir la première connexion */
+memory *lpc_connect(char *shmo_name) {
+    int fd = shm_open(shmo_name, O_RDWR, 0);
+    if (fd < 0) ERREXIT("%s %s\n", "shm_open", strerror(errno));
 
-    int code;
+    memory *mem =
+            mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mem", strerror(errno));
 
-    // pointer to the list of parameters of the call
-    va_list p_list_args;
+    DEBUG("client[%d]: lock\n", getpid());
+    int rc = pthread_mutex_lock(&mem->header.mutex);
+    if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
+    DEBUG("client[%d]: acquire lock\n", getpid());
 
-    // initialisation of this pointer
-    va_start(p_list_args, fun_name);
-
-    // cast to 'memory *'
-    memory *p_mem = (memory *) p_memory;
-
-    /* etablir la première connexion */
-///start of mutex to modify the shared memory (to modify the memory shared with the distributed server.)
-
-    DEBUG("client[%d]: lock (to modify the memory shared with the distributed server.)\n", getpid());
-    code = pthread_mutex_lock(&p_mem->header.mutex);
-    if (code != 0) ERREXIT("pthread_mutex_lock : %s\n", strerror(code));
-    DEBUG("client[%d]: acquire lock (for principal shared memory)\n", getpid());
-
-    // Tant qu'il y a un client en cours de traitment par le serveur principal
-    // (qui va faire fork et laisse le serveur fils s'en occuper), on attend ...
-    while (p_mem->header.new) {
-        DEBUG("client[%d]: release lock and wait (for principal shared memory)\n\n", getpid());
-        code = pthread_cond_wait(&p_mem->header.new_cond, &p_mem->header.mutex);
-        if (code != 0) ERREXIT("pthread_cond_wait : %s\n", strerror(code));
+    while (mem->header.new) {
+        DEBUG("client[%d]: release lock and wait\n", getpid());
+        rc = pthread_cond_wait(&mem->header.new_cond, &mem->header.mutex);
+        if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_wait", strerror(rc));
+        DEBUG("client[%d]: acquire lock after wait\n", getpid());
     }
-    DEBUG("client[%d]: acquire lock after wait (for principal shared memory)\n", getpid());
 
-/* critic section */
+    mem->header.pid = getpid();
+    mem->header.call = 1;
 
-    //todo:à supprimer !?? pourquoi ? il a besoin de son id pour lui créer
-    // une zone mémoire avec comme nom l'ancien nom suivi de son pid ...
+    rc = msync(mem, sizeof(memory), MS_SYNC);
+    if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
 
-    // ici le client annonce au serveur son identité pour qu'il lui crée un process fils qui s'en occupera de lui
-    p_mem->header.pid = getpid();
+    rc = pthread_mutex_unlock(&mem->header.mutex);
+    if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
+    DEBUG("client[%d]: release lock\n", getpid());
 
-    p_mem->header.new = 1; /* prévenir tout le monde (server distribué et les autres clients qui veulent aussi
-                            * entrer en communication avec ce server) qu'il y a actuellement une communication
-                            * courante entre le server principal et un client */
+    rc = pthread_cond_signal(&mem->header.call_cond);
+    if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
 
-    //todo: à confirmer si 'new' seul suffit ( pas besoin de call = 1 ici je crois)
-    p_mem->header.call = 1; //  prévenir le serveur qu'il y a un client qui veut faire un appel à une fonction
+    lpc_close(mem);
+    close(fd);
 
-    if ((msync(p_mem, sizeof(memory), MS_SYNC)) < 0) ERREXIT("msync : %s\n", strerror(errno));
-
-/* end critic section */
-
-    if ((code = pthread_mutex_unlock(&p_mem->header.mutex)) != 0)
-        ERREXIT("pthread_mutex_unlock : %s\n", strerror(code));
-    if ((code = pthread_cond_signal(&p_mem->header.new_cond)) != 0)
-        ERREXIT("pthread_cond_signal : %s\n", strerror(code));
-
-///end of mutex (to modify the memory shared with the distributed server; after this shared memory has been modified by client).
-
-/* Se préparer pour ouvrir la projection mémoire qui sera créée par le process enfant */
-    char shm_name[BUFSIZE] = {0};
-    snprintf(shm_name, BUFSIZE, "%s%d", p_mem->header.shm_name, getpid());
-
-    // terminer la projection mémoire avec la mémoire principale partagée avec le server distribué
-    munmap(p_mem, sizeof(memory));
-
-    /* attendre que le nouveau shared memory soit créé */
-    memory *p_new_memory;
+    /* attendre que le nouveau shared memory soit crée */
+    char name[BUFSIZE] = {0};
+    snprintf(name, BUFSIZE, "%s%d", shmo_name, getpid());
     while (1) {
-        p_new_memory = (memory *) lpc_open(shm_name);
-        if (p_new_memory == NULL) ERREXIT("lpc_open : %s\n", strerror(errno));
-        break;
+        fd = shm_open(name, O_RDWR, 0);
+        if (fd != -1) break;
+        if (errno != ENOENT) ERREXIT("%s %s\n", "shm_open", strerror(errno));
     }
-    // le client a maintenant un pointeur valide vers la mémoire partagée avec le server enfant
 
-///start of mutex to modify the shared memory (to modify the memory shared with the child server)
+    DEBUG("client[%d]: new shared memory created %s\n\n", getpid(), name);
 
+    mem = mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mmap", strerror(errno));
 
-    DEBUG("client[%d]: lock (to modify the memory shared with the child server)\n", getpid());
-    code = pthread_mutex_lock(&p_new_memory->header.mutex);
-    if (code != 0) ERREXIT("pthread_mutex_lock : %s\n", strerror(code));
-    DEBUG("client[%d]: acquire lock (for the memory shared with the child server)\n", getpid());
+    return mem;
+}
 
-    // Tant que le server enfant n'a pas encore fait le précédent appel de fonction, on attend ...
-    while (p_new_memory->header.call) {
-        DEBUG("client[%d]: release lock and wait (for the memory shared with the child server)\n\n", getpid());
-        code = pthread_cond_wait(&p_new_memory->header.call_cond, &p_new_memory->header.mutex);
-        if (code != 0) ERREXIT("pthread_cond_wait : %s\n", strerror(code));
-    }
-    DEBUG("client[%d]: acquire lock after wait (for the memory shared with the child server)\n", getpid());
-
-/* critic section */
-
-    p_new_memory->header.call = 1; //  prévenir le serveur enfant que le client veut faire un appel à une fonction
-
-    //Preparation to copy args to shared mem 'p_new_memory'
-    memset(&p_new_memory->data, 0, sizeof(p_new_memory->data)); // d'abord mettre tout à 0
-
-    // copier le nom de la fonction
-    memcpy(p_new_memory->data.fun_name, fun_name, strlen(fun_name) + 1);
-
-    // copier les paramètres de la fonction (les valeurs d'entrée) dans la mémoire partagée
+static void copy_params_to_mem(memory *mem, va_list ap) {
     int insert_index = 0;
-    lpc_type *p_current_lpc_type = NULL;
+    lpc_type current_lpc_type;
+
     do {
-        *p_current_lpc_type = va_arg(p_list_args, lpc_type);
+        current_lpc_type = va_arg(ap, lpc_type);
+        switch (current_lpc_type) {
+            case INT:;
+                const int *tmp_int = va_arg(ap, int *);
+                memcpy(mem->data.params + insert_index, tmp_int, sizeof(int));
+                insert_index += sizeof(int);
+                break;
 
-        if (*p_current_lpc_type == INT) {
-            const int *temp_int = va_arg(p_list_args, int *);
-            memmove(p_new_memory->data.params + sizeof(int) + insert_index, temp_int, sizeof(int));
-            insert_index += sizeof(int);
+            case DOUBLE:;
+                const double *tmp_double = va_arg(ap, double *);
+                memcpy(mem->data.params + insert_index, tmp_double, sizeof(double));
+                insert_index += sizeof(double);
+                break;
 
-        } else if (*p_current_lpc_type == DOUBLE) {
-            const double *temp_double = va_arg(p_list_args, double *);
-            memmove(p_new_memory->data.params + sizeof(int) + insert_index, temp_double, sizeof(double));
-            insert_index += sizeof(double);
-
-        } else if (*p_current_lpc_type == STRING) {
-            const lpc_string *temp_lpc_string = va_arg(p_list_args, lpc_string *);
-            memmove(p_new_memory->data.params + sizeof(int) + insert_index, temp_lpc_string->string,
-                    temp_lpc_string->slen);
-            insert_index += temp_lpc_string->slen;
+            case STRING:;
+                const lpc_string *tmp_string = va_arg(ap, lpc_string *);
+                int len = sizeof(lpc_string) + tmp_string->slen;
+                memcpy(mem->data.params + insert_index, tmp_string, len);
+                insert_index += len;
+                break;
+            default:
+                break;
         }
-    } while (*p_current_lpc_type != NOP);
+    } while (current_lpc_type != NOP);
+}
 
-    /* On écrit au début de la zone mémoire pointée par 'params' la taille totale
-     * (qui est la somme des tailles de tous les arguments de la fonction) */
-    memmove(p_new_memory->data.params, &insert_index, sizeof(int));
+static void copy_params_from_mem(memory *mem, va_list ap) {
+    // TODO
+    int insert_index = 0;
+    int *tmp_int;
+    double *tmp_double;
+    lpc_string *tmp_string;
+    lpc_type current_lpc_type;
 
-    if ((msync(p_new_memory, sizeof(memory), MS_SYNC)) < 0) ERREXIT("msync : %s\n", strerror(errno));
+    do {
+        current_lpc_type = va_arg(ap, lpc_type);
+        switch (current_lpc_type) {
+            case INT:
+                tmp_int = va_arg(ap, int *);
+                memcpy(tmp_int, mem->data.params + insert_index, sizeof(int));
+                insert_index += sizeof(int);
+                break;
 
-/* end critic section */
+            case DOUBLE:
+                tmp_double = va_arg(ap, double *);
+                memcpy(tmp_double, mem->data.params + insert_index, sizeof(double));
+                insert_index += sizeof(double);
+                break;
 
-    /* On libère le mutex (pour laisser le server enfant nous calculer le résultat) */
-    if ((code = pthread_mutex_unlock(&p_new_memory->header.mutex)) != 0)
-        ERREXIT("pthread_mutex_unlock : %s\n", strerror(code));
+            case STRING:
+                tmp_string = va_arg(ap, lpc_string *);
+                int len = sizeof(lpc_string) + tmp_string->slen;
+                memcpy(tmp_string, mem->data.params + insert_index, len);
+                insert_index += len;
+                break;
+            default:
+                break;
+        }
+    } while (current_lpc_type != NOP);
+}
 
-    /* On réveille le server enfant */
-    if ((code = pthread_cond_signal(&p_new_memory->header.call_cond)) != 0)
-        ERREXIT("pthread_cond_signal : %s\n", strerror(code));
+static void notify_call(memory *mem) {
+    mem->header.res = 0;
+    mem->header.call = 1;
 
-///start of mutex to get the results from the shared memory (the memory shared with the child server)
+    int rc = msync(mem, sizeof(memory), MS_SYNC);
+    if (rc != 0) ERREXIT("%s %s\n", "msync", strerror(errno));
 
-    /* Ce même client doit se suspendre par un appel à pthread_cond_wait POUR RÉCUPÉRER LES RESULTS; */
-    DEBUG("client[%d]: lock (to get the results from the memory shared with the child server)\n", getpid());
-    code = pthread_mutex_lock(&p_new_memory->header.mutex);
-    if (code != 0) ERREXIT("pthread_mutex_lock : %s\n", strerror(code));
-    DEBUG("client[%d]: acquire lock (to get the results from the memory shared with the child server)\n", getpid());
+    rc = pthread_mutex_unlock(&mem->header.mutex);
+    if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
 
-    // Tant que le server enfant n'a pas encore fait le précédent appel de fonction, on attend ...
-    while (!p_new_memory->header.res) {
-        DEBUG("client[%d]: release lock and wait (to get the results from the memory shared with the child server)\n\n", getpid());
-        code = pthread_cond_wait(&p_new_memory->header.res_cond, &p_new_memory->header.mutex);
-        if (code != 0) ERREXIT("pthread_cond_wait : %s\n", strerror(code));
+    rc = pthread_cond_signal(&mem->header.call_cond);
+    if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
+}
+
+int lpc_call(void *mem, const char *fun_name, ...) {
+    memory *lpc_mem = (memory *) mem;
+
+    int rc = pthread_mutex_lock(&lpc_mem->header.mutex);
+    if (rc != 0) ERREXIT("pthread_mutex_lock : %s\n", strerror(rc));
+
+    memset(&lpc_mem->data, 0, sizeof(lpc_mem->data));
+    memcpy(lpc_mem->data.fun_name, fun_name, strlen(fun_name));
+
+    va_list ap, aq;
+    va_start(ap, fun_name);
+    va_copy(aq, ap);
+
+    copy_params_to_mem(lpc_mem, ap);
+    notify_call(lpc_mem);
+
+    va_end(ap);
+
+    while (!lpc_mem->header.res) { /*tant qu'il n'y a pas de resultat à lire*/
+        DEBUG("client[%d]: release lock and wait\n", getpid());
+        rc = pthread_cond_wait(&lpc_mem->header.res_cond, &lpc_mem->header.mutex);
+        if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_wait", strerror(rc));
+        DEBUG("client[%d]: acquire lock after wait\n", getpid());
     }
-    DEBUG("client[%d]: acquire lock after wait (to get the results from the memory shared with the child server)\n", getpid());
 
-    // Copier les résultat vers la mémoire du client
+    if (lpc_mem->header.rc == -1) {
+        errno = lpc_mem->header.er;
+    } else {
+        copy_params_from_mem(lpc_mem, aq);
+    }
 
-///end of mutex to get the results from the shared memory (the memory shared with the child server)
+    va_end(aq);
 
+    rc = pthread_mutex_unlock(&lpc_mem->header.mutex);
+    if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
 
-///end of mutex (to modify the memory shared with the child server; after this shared memory has been modified by client).
-
-    return 0;
+    return lpc_mem->header.rc;
 }
 
 lpc_string *lpc_make_string(const char *s, int taille) {
-    lpc_string *pLpcString;
+    lpc_string *lpc_str = NULL;
 
     if (taille > 0 && s == NULL) {
-        pLpcString = (lpc_string *) malloc(sizeof(lpc_string) + taille + 1);
-        memset(pLpcString->string, 0, taille + 1);
-        pLpcString->slen = taille;
-
+        lpc_str = (lpc_string *) malloc(sizeof(lpc_string) + taille + 1);
+        memset(lpc_str->string, 0, taille + 1);
+        lpc_str->slen = taille;
     } else if (taille <= 0 && s != NULL) {
-        pLpcString = (lpc_string *) malloc(sizeof(lpc_string) + strlen(s) + 1);
-        strncpy(pLpcString->string, s, strlen(s));
-        pLpcString->slen = (int) strlen(s) + 1;
+        int lo = strlen(s);
+        lpc_str = (lpc_string *) malloc(sizeof(lpc_string) + lo + 1);
+        strncpy(lpc_str->string, s, lo);
+        lpc_str->slen = lo;
+    } else if (s != NULL && taille > (int) strlen(s) + 1) {
+        lpc_str = (lpc_string *) malloc(sizeof(lpc_string) + taille + 1);
+        strncpy(lpc_str->string, s, strlen(s));
+        lpc_str->slen = taille;
+    }
 
-    } else if (taille > strlen(s) + 1) {
-        pLpcString = (lpc_string *) malloc(sizeof(lpc_string) + taille + 1);
-        strncpy(pLpcString->string, s, strlen(s));
-        pLpcString->slen = taille;
-
-    } else return NULL;
-
-    return pLpcString;
+    return lpc_str;
 }
