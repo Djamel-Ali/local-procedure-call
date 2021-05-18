@@ -25,14 +25,7 @@ _(**Attention :** il faut bien sûr donner le même nom **<shmo_name>** que celu
 ```bash
 $>./client <shmo_name>
 ```
-* Pour lancer plusieurs instances du programme **client** en parallèle, vous pouvez utiliser la commande intégrée d'attente (du **bash shell**) avec le symbol **&**.
-
-voici un exemple de lancement de 2 clients en parallèle :
-
-```bash
-$>./client <shmo_name> & ./client <shmo_name>
-```
-
+Les programmes **"client"** sont les fichiers exécutables dans le dossier _tests/_.
 
 
 ### Autres règles du Makefile
@@ -50,6 +43,13 @@ $>make cleandep
 $>make cleanall
 ```
 
+### Détails d'implémentation
+* Nous avons implémenté un serveur distribué (et donc qui peut prendre en charge plusieurs clients).
+* Quand un client demande une fonction qui n'existe pas dans le tableau de fonctions gérées par le serveur,
+ce dernier retourne un code d'erreur **ENOENT**.
+* On s'est assuré d'avoir bien libéré la mémoire allouée dynamiquement aussi bien du côté serveur que du côté client.
+* Nous avons mis en place des fonctions de test (dans _tests/_) qui illustrent les cas de succès et d'échec pour chacune.
+Ces fonctions utilisent tous les types proposés dans ce projet.
 
 ### Voir aussi :
 
