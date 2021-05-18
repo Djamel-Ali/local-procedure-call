@@ -43,6 +43,7 @@ static void test_fun_hello_failure(memory *mem) {
   lpc_string *string = lpc_make_string(s, len);
   if (string != NULL) {
     int rc = lpc_call(mem, fun_name, STRING, string, NOP);
+    lpc_deconnect(mem);
     free(string);
     if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
   }
@@ -83,6 +84,7 @@ static void test_fun_print_n_times_failure(memory *mem) {
   lpc_string *string = lpc_make_string(s, len * 5);
   if (string != NULL) {
     int rc = lpc_call(mem, fun_name, INT, &n_times, STRING, string, NOP);
+    lpc_deconnect(mem);
     free(string);
     if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
     printf("KO\n");
@@ -97,7 +99,7 @@ static void test_fun_divide_double_succes(memory *mem) {
   double num = 4.5, denom = 3;
 
   int rc = lpc_call(mem, fun_name, DOUBLE, &num, DOUBLE, &denom, NOP);
-
+  lpc_deconnect(mem);
   if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
 
   printf("%lf\n", num);
@@ -109,15 +111,16 @@ static void test_fun_divide_double_failure(memory *mem) {
   double num = 4.5, denom = 0;
 
   int rc = lpc_call(mem, fun_name, DOUBLE, &num, DOUBLE, &denom, NOP);
+  lpc_deconnect(mem);
 
   if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
-
   printf("KO\n");
 }
 
 static void test_fun_unknown(memory *mem) {
   char *fun_name = "fun_unknown";
   int rc = lpc_call(mem, fun_name, NOP);
+  lpc_deconnect(mem);
   if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
   printf("KO\n");
 }

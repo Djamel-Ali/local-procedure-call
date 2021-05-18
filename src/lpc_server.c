@@ -92,5 +92,5 @@ void lpc_call_fun(memory *mem) {
 void lpc_free(const char *shmo_name) {
   DEBUG("-->lpc_free<--\nserver[%d]\n", getpid());
   if (shmo_name != NULL && shm_unlink(shmo_name) == -1)
-    ERREXIT("%s %s\n", "shm_unlink", strerror(errno));
+    ERREXIT("[%d] shm_unlink: %s\n", getpid(), strerror(errno));
 }

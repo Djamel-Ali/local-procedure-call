@@ -1,4 +1,6 @@
+#define _XOPEN_SOURCE 700
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +12,8 @@
 #include "include/lpc_server.h"
 #include "include/lpc_sync.h"
 #include "include/lpc_utils.h"
+
+char *lpc_shom = NULL;
 
 /* Bloquer le serveur jusqu'à ce qu'un client écrive dans la mémoire [mem] */
 static void wait_for_call(memory *mem) {
@@ -99,14 +103,37 @@ static void run(memory *mem, char *shmo_name) {
   }
 }
 
+static void handler_terminate(int sig) {
+  if (sig == SIGINT || sig == SIGTERM) {
+    lpc_free(lpc_shom);
+    char *msg="server closed.\n";
+    write(1, msg, strlen(msg));
+    _exit(EXIT_SUCCESS);
+  }
+}
+
 int main(int argc, const char **argv) {
   if (argc != 2) {
     printf("usage: %s shmo_name\n", argv[0]);
     exit(EXIT_FAILURE);
   }
 
-  char *shmo_name = start_with_slash(argv[1]);
-  memory *mem = lpc_create(shmo_name, 1);
+  struct sigaction act;
+
+  act.sa_handler = handler_terminate;
+  act.sa_flags = 0;
+  sigfillset(&act.sa_mask);
+  if (sigaction(SIGINT, &act, NULL) == -1)
+    ERREXIT("%s %s\n", "sigaction", strerror(errno));
+
+  act.sa_handler = handler_terminate;
+  act.sa_flags = 0;
+  sigfillset(&act.sa_mask);
+  if (sigaction(SIGTERM, &act, NULL) == -1)
+    ERREXIT("%s %s\n", "sigaction", strerror(errno));
+
+  lpc_shom = start_with_slash(argv[1]);
+  memory *mem = lpc_create(lpc_shom, 1);
   lpc_init_header(mem);
 
   int rc;
@@ -117,7 +144,7 @@ int main(int argc, const char **argv) {
       case -1:
         ERREXIT("%s %s\n", "fork", strerror(errno));
       case 0:
-        run(mem, shmo_name);
+        run(mem, lpc_shom);
         break;
       default:
         DEBUG("server[%d]: new process child created %d\n", getpid(), pid);
