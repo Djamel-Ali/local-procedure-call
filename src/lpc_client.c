@@ -81,36 +81,32 @@ static void wait_for_connection(memory *mem) {
 }
 
 /* etablir la première connexion */
-memory *lpc_connect(char *shmo_name) {
-  int fd = shm_open(shmo_name, O_RDWR, 0);
-  if (fd < 0) ERREXIT("%s %s\n", "shm_open", strerror(errno));
-
-  memory *mem =
-      mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mem", strerror(errno));
-
+memory *lpc_connect(memory *mem, char *shmo_name) {
+  DEBUG("-->lpc_connect<--\nclient[%d]\n", getpid());
   send_pid(mem);
   wait_for_connection(mem);
   lpc_close(mem);
-  close(fd);
 
   char name[BUFSIZE] = {0};
   snprintf(name, BUFSIZE, "%s%d", shmo_name, getpid());
+  int fd;
   while (1) {
     fd = shm_open(name, O_RDWR, 0);
     if (fd != -1) break;
     if (errno != ENOENT) ERREXIT("%s %s\n", "shm_open", strerror(errno));
   }
 
-  DEBUG("client[%d]: connection done & new shared memory created %s\n\n", getpid(), name);
+  DEBUG("client[%d]: connection done & new shared memory created %s\n\n",
+        getpid(), name);
 
-  mem = mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (mem == MAP_FAILED) ERREXIT("%s %s\n", "mmap", strerror(errno));
+  memory *mem_cl =
+      mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (mem_cl == MAP_FAILED) ERREXIT("%s %s\n", "mmap", strerror(errno));
 
-  return mem;
+  return mem_cl;
 }
 
-void lpc_deconnect(memory *mem){
+void lpc_deconnect(memory *mem) {
   DEBUG("-->lpc_deconnect<--\nclient[%d]: lock\n", getpid());
   int rc = pthread_mutex_lock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
@@ -131,6 +127,8 @@ void lpc_deconnect(memory *mem){
 }
 
 static void copy_params_to_mem(memory *mem, va_list ap) {
+  DEBUG("-->copy_params_to_mem<--client[%d]\n", getpid());
+
   int insert_index = 0;
   lpc_type current_lpc_type;
 
@@ -139,12 +137,14 @@ static void copy_params_to_mem(memory *mem, va_list ap) {
     switch (current_lpc_type) {
       case INT:;
         const int *tmp_int = va_arg(ap, int *);
+        DEBUG("copy_params_to_mem int : %d\n", *tmp_int);
         memcpy(mem->data.params + insert_index, tmp_int, sizeof(int));
         insert_index += sizeof(int);
         break;
 
       case DOUBLE:;
         const double *tmp_double = va_arg(ap, double *);
+        DEBUG("copy_params_to_mem double : %f\n", *tmp_double);
         memcpy(mem->data.params + insert_index, tmp_double, sizeof(double));
         insert_index += sizeof(double);
         break;
@@ -152,9 +152,11 @@ static void copy_params_to_mem(memory *mem, va_list ap) {
       case STRING:;
         const lpc_string *tmp_string = va_arg(ap, lpc_string *);
         int len = sizeof(lpc_string) + tmp_string->slen;
+        DEBUG("copy_params_to_mem string : %s (%d)\n", tmp_string->string, len);
         memcpy(mem->data.params + insert_index, tmp_string, len);
         insert_index += len;
         break;
+
       default:
         break;
     }
@@ -162,7 +164,8 @@ static void copy_params_to_mem(memory *mem, va_list ap) {
 }
 
 static void copy_params_from_mem(memory *mem, va_list ap) {
-  // TODO
+  DEBUG("-->copy_params_from_mem<--client[%d]\n", getpid());
+
   int insert_index = 0;
   int *tmp_int;
   double *tmp_double;
@@ -197,6 +200,8 @@ static void copy_params_from_mem(memory *mem, va_list ap) {
 }
 
 static void notify_call(memory *mem) {
+  DEBUG("-->notify_call<--client[%d]\n", getpid());
+
   mem->header.res = 0;
   mem->header.call = 1;
 
@@ -211,7 +216,7 @@ static void notify_call(memory *mem) {
 }
 
 int lpc_call(void *mem, const char *fun_name, ...) {
-  DEBUG("-->lpc_call<--\nclient[%d]\n", getpid());
+  DEBUG("-->lpc_call<--client[%d]\n", getpid());
 
   memory *lpc_mem = (memory *)mem;
 

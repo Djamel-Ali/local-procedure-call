@@ -4,7 +4,7 @@
 
 # Compiler settings 
 CC = gcc
-CFLAGS = -std=c11 -Wall -Wextra -pedantic -g -DLPCDEBUG=1
+CFLAGS = -std=c11 -Wall -Wextra -pedantic -g -DLPCDEBUG=0
 LDLIBS = -lrt -pthread
 
 
