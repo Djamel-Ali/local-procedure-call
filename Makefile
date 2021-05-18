@@ -8,14 +8,20 @@ CFLAGS = -std=c11 -Wall -Wextra -pedantic -g -DLPCDEBUG=0
 LDLIBS = -lrt -pthread
 
 
-# Makefile settings 
-APP = client server
+# Makefile settings
+APP = server tests/test_fun_hello_success tests/test_fun_hello_failure \
+			 tests/test_fun_print_n_times_success tests/test_fun_print_n_times_failure \
+			 tests/test_fun_divide_double_success tests/test_fun_divide_double_failure \
+			 tests/test_fun_unknown
 EXT = .c
 SRCDIR = src
 
 SRC = $(wildcard $(SRCDIR)/*$(EXT))
 OBJ = $(SRC:$(SRCDIR)/%$(EXT)=%.o)
-COMOBJ = $(filter-out server.o client.o,  $(OBJ))
+COMOBJ = $(filter-out server.o tests/test_fun_hello_success.o tests/test_fun_hello_failure \
+							   tests/test_fun_print_n_times_success.o tests/test_fun_print_n_times_failure.o \
+							   tests/test_fun_divide_double_success.o tests/test_fun_divide_double_failure.o \
+							   tests/test_fun_unknown.o ,  $(OBJ))
 DEP = $(OBJ:%.o=%.d)
 
 ########################################################################
@@ -33,8 +39,14 @@ $(APP): $(COMOBJ)
 	@echo "√ done."
 
 # Creates the dependecy rules
-client: client.o 
-server: server.o 
+tests/test_fun_hello_success: tests/test_fun_hello_success.o
+tests/test_fun_hello_failure: tests/test_fun_hello_failure.o
+tests/test_fun_print_n_times_success: tests/test_fun_print_n_times_success.o
+tests/test_fun_print_n_times_failure: tests/test_fun_print_n_times_failure.o
+tests/test_fun_divide_double_success: tests/test_fun_divide_double_success.o
+tests/test_fun_divide_double_failure: tests/test_fun_divide_double_failure.o
+tests/test_fun_unknown: tests/test_fun_unknown.o
+server: server.o
 
 %.d: $(SRCDIR)/%$(EXT)
 	@$(CPP) $(CFLAGS) $< -MM -MT $(@:%.d=%.o) >$@
@@ -53,12 +65,14 @@ server: server.o
 .PHONY: clean cleandep cleanall
 clean:
 	@echo "~ cleaning obj ..."
-	@rm -rf $(OBJ) 
+	@rm -rf $(OBJ)
+	@rm -rf tests/*.o
 	@echo "√ done."
 
 cleandep:
 	@echo "~ cleaning dep ..."
 	@rm -rf $(DEP)
+	@rm -rf rests/*.d
 	@echo "√ done."
 
 cleanall: clean cleandep
