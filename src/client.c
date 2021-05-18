@@ -20,9 +20,8 @@ static void test_fun_hello_succes(memory *mem) {
   lpc_string *string = lpc_make_string(s, len * 10);
 
   int rc = lpc_call(mem, fun_name, STRING, string, NOP);
-
+  lpc_deconnect(mem);
   if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
-
   printf("%s\n", string->string);
 }
 

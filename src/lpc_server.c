@@ -68,12 +68,15 @@ void lpc_init_header(memory *mem) {
   rc = init_cond(&mem->header.new_cond);
   if (rc != 0) ERREXIT("%s %s\n", "init_cond", strerror(errno));
 
+  rc = init_cond(&mem->header.end_cond);
+  if (rc != 0) ERREXIT("%s %s\n", "init_cond", strerror(errno));
+
   rc = msync(mem, sizeof(memory), MS_SYNC);
   if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
 }
 
 void lpc_call_fun(memory *mem) {
-  DEBUG("server[%d]: lpc_call_fun: %s\n", getpid(), mem->data.fun_name);
+  DEBUG("-->lpc_call_fun<--\nserver[%d] %s\n", getpid(), mem->data.fun_name);
   int (*f)(void *) = lpc_get_fun(mem->data.fun_name);
   if(f == NULL){
     mem->header.rc = -1;
@@ -86,6 +89,7 @@ void lpc_call_fun(memory *mem) {
 }
 
 void lpc_free(const char *shmo_name) {
+  DEBUG("-->lpc_free<--\nserver[%d]\n", getpid());
   if (shmo_name != NULL && shm_unlink(shmo_name) == -1)
     ERREXIT("%s %s\n", "shm_unlink", strerror(errno));
 }

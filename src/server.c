@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "include/lpc_server.h"
@@ -12,7 +13,7 @@
 
 /* Bloquer le serveur jusqu'à ce qu'un client écrive dans la mémoire [mem] */
 static void wait_for_call(memory *mem) {
-  DEBUG("server[%d]: wait_for_call\nserver[%d]: lock\n", getpid(), getpid());
+  DEBUG("-->wait_for_call<--\nserver[%d]: lock\n", getpid());
 
   int rc = pthread_mutex_lock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
@@ -31,7 +32,7 @@ static void wait_for_call(memory *mem) {
 
 /* Reveiller les clients qui attendent une modification de la mémoire [mem] */
 static void notify_response(memory *mem) {
-  DEBUG("server[%d]: notify_response\n", getpid());
+  DEBUG("-->notify_response<--\nserver[%d]", getpid());
 
   mem->header.res = 1;
   mem->header.call = 0;
@@ -47,36 +48,43 @@ static void notify_response(memory *mem) {
   if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
 }
 
+static void notify_connection(memory *mem) {
+  DEBUG("-->notify_connection<--\nserver[%d]\n", getpid());
+
+  mem->header.end = 1;
+  mem->header.new = 0;
+
+  int rc = msync(mem, sizeof(memory), MS_SYNC);
+  if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
+
+  rc = pthread_mutex_unlock(&mem->header.mutex);
+  if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
+  DEBUG("server[%d]: release lock\n\n", getpid());
+
+  rc = pthread_cond_signal(&mem->header.new_cond);
+  if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
+
+  rc = pthread_cond_signal(&mem->header.end_cond);
+  if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
+
+  rc = munmap(mem, sizeof(memory));
+  if (rc != 0) ERREXIT("%s %s\n", "munmap", strerror(rc));
+}
+
 /* Assure la communication entre un client spécifique et un prossessus files du
  * serveur */
 static void run(memory *mem, char *shmo_name) {
   int rc = pthread_mutex_lock(&mem->header.mutex);
   if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_lock", strerror(rc));
 
-  /* lire le pid du processus client */
-  pid_t pid = mem->header.pid;
-
-  /* signaler qu'un nouveau client peut écrire dans la mémoire partagée */
-  mem->header.new = 0;
-  rc = msync(mem, sizeof(memory), MS_SYNC);
-  if (rc < 0) ERREXIT("%s %s\n", "msync", strerror(errno));
-
-  rc = pthread_mutex_unlock(&mem->header.mutex);
-  if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
-
-  rc = pthread_cond_signal(&mem->header.new_cond);
-  if (rc != 0) ERREXIT("%s %s\n", "pthread_cond_signal", strerror(rc));
-
-  rc = munmap(mem, sizeof(memory));
-  if (rc != 0) ERREXIT("%s %s\n", "munmap", strerror(rc));
-
   /* créer le nouveau shared memory */
   char name[NAME_MAX] = {0};
-  snprintf(name, NAME_MAX, "%s%d", shmo_name, pid);
+  snprintf(name, NAME_MAX, "%s%d", shmo_name, mem->header.pid);
   memory *client_mem = lpc_create(name, 1);
   lpc_init_header(client_mem);
-  
   DEBUG("server[%d]: create new shared memory %s\n\n", getpid(), name);
+
+  notify_connection(mem);
 
   /* communiquer avec le client */
   while (1) {
@@ -122,6 +130,13 @@ int main(int argc, const char **argv) {
         DEBUG("server[%d]: release lock after fork\n\n", getpid());
         rc = pthread_mutex_unlock(&mem->header.mutex);
         if (rc != 0) ERREXIT("%s %s\n", "pthread_mutex_unlock", strerror(rc));
+
+        pid = waitpid(-1, 0, WNOHANG);
+        if (pid < 0)
+          ERREXIT("%s %s\n", "waitpid", strerror(errno));
+        else
+          DEBUG("server[%d]: zombi %d deleted\n\n", getpid(), pid);
+
         break;
     }
   }

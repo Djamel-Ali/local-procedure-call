@@ -17,6 +17,7 @@ typedef struct {
   /* condition pour effectuer la première communication avec le serveur (pour
    * envoyer son pid )*/
   pthread_cond_t new_cond;
+  pthread_cond_t end_cond;
 
   pid_t pid; /* pid du nouveau client */
   int new;   /* new == 1 s'il y a un nouveau client qui a envoyer son pid */
@@ -24,7 +25,8 @@ typedef struct {
   int res;   /* res == 1 s'il y a un resultat à un appel de fonction */
   int rc;    /* valeur retournée par la fonction appelée: 0 ou -1. */
   int er;    /* valeur de errno. */
-  int end;   /* end == 1 pour terminer la communication avec le serveur */
+  int end; /* end == 1 pour terminer la communication avec le serveur (client) /
+              indiquer que la connection est établit (serveur) */
 
 } header;
 
