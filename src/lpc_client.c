@@ -15,8 +15,8 @@ void *lpc_open(const char *name) {
   char *shm_name = start_with_slash(name);
 
   int fd = shm_open(shm_name, O_RDWR, 0);
+  free(shm_name);
   if (fd < 0) ERREXIT("shm_open : %s\n", strerror(errno));
-
   memory *mem =
       mmap(0, sizeof(memory), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (mem == MAP_FAILED) return NULL;

@@ -34,6 +34,7 @@ int (*lpc_get_fun(const char *fun_name))(void *) {
 static int create_shom(const char *shom_name, size_t size) {
   char *name = start_with_slash(shom_name);
   int fd = shm_open(name, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
+  free(name);
   if (fd < 0) ERREXIT("%s %s\n", "shm_open", strerror(errno));
   if (ftruncate(fd, size) < 0) ERREXIT("%s %s\n", "ftruncate", strerror(errno));
   return fd;

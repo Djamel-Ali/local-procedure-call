@@ -18,14 +18,18 @@ static void test_fun_hello_succes(memory *mem) {
   snprintf(s, len, "%s%d", cl, getpid());
 
   lpc_string *string = lpc_make_string(s, len * 10);
-  if(string == NULL){
+  if (string == NULL) {
     printf("%s:%d: KO", __FILE__, __LINE__);
     return;
   }
   int rc = lpc_call(mem, fun_name, STRING, string, NOP);
   lpc_deconnect(mem);
-  if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
+  if (rc == -1) {
+    free(string);
+    ERREXIT("%s %s\n", "lpc_call", strerror(errno));
+  }
   printf("%s\n", string->string);
+  free(string);
 }
 
 // exemple de test sans succès
@@ -39,6 +43,7 @@ static void test_fun_hello_failure(memory *mem) {
   lpc_string *string = lpc_make_string(s, len);
   if (string != NULL) {
     int rc = lpc_call(mem, fun_name, STRING, string, NOP);
+    free(string);
     if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
   }
   printf("KO\n");
@@ -55,12 +60,15 @@ static void test_fun_print_n_times_succes(memory *mem) {
 
   lpc_string *string = lpc_make_string(s, len * 10);
 
-  int rc = lpc_call(mem, fun_name, INT, &n_times, STRING, string, NOP);
-  lpc_deconnect(mem);
-
-  if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
-
-  printf("%s\n", string->string);
+  if (string != NULL) {
+    int rc = lpc_call(mem, fun_name, INT, &n_times, STRING, string, NOP);
+    lpc_deconnect(mem);
+    if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
+    printf("%s\n", string->string);
+    free(string);
+  } else {
+    printf("%s:%d: KO", __FILE__, __LINE__);
+  }
 }
 
 // exemple de test sans succès
@@ -73,12 +81,14 @@ static void test_fun_print_n_times_failure(memory *mem) {
   snprintf(s, len, "%s%d", cl, getpid());
 
   lpc_string *string = lpc_make_string(s, len * 5);
-
-  int rc = lpc_call(mem, fun_name, INT, &n_times, STRING, string, NOP);
-
-  if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
-
-  printf("KO\n");
+  if (string != NULL) {
+    int rc = lpc_call(mem, fun_name, INT, &n_times, STRING, string, NOP);
+    free(string);
+    if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
+    printf("KO\n");
+  } else {
+    printf("%s:%d: KO", __FILE__, __LINE__);
+  }
 }
 
 // exemple de test avec succès
@@ -121,9 +131,7 @@ int main(int argc, char **argv) {
   memory *mem = lpc_open(argv[1]);
   memory *mem_cl = lpc_connect(mem, argv[1]);
 
-  test_fun_hello_succes(mem_cl);
-
-  mem_cl = lpc_connect(mem, argv[1]);
+  // test_fun_hello_succes(mem_cl);
 
   test_fun_hello_failure(mem_cl);
 
