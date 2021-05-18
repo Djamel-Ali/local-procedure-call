@@ -1,14 +1,10 @@
 #include <stdlib.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
-#include "include/lpc_client.h"
-#include "include/lpc_memory.h"
-#include "include/lpc_utils.h"
+#include "../src/include/lpc_client.h"
+#include "../src/include/lpc_utils.h"
 
 // exemple de test avec succès
 static void test_fun_divide_double_success(memory *mem) {

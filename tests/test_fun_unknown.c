@@ -1,14 +1,10 @@
 #include <stdlib.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
-#include "include/lpc_client.h"
-#include "include/lpc_memory.h"
-#include "include/lpc_utils.h"
+#include "../src/include/lpc_client.h"
+#include "../src/include/lpc_utils.h"
 
 // le nom de la fontion défini par le client n'est pas connu par le serveur
 static void test_fun_unknown(memory *mem) {
