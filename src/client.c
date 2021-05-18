@@ -18,7 +18,10 @@ static void test_fun_hello_succes(memory *mem) {
   snprintf(s, len, "%s%d", cl, getpid());
 
   lpc_string *string = lpc_make_string(s, len * 10);
-
+  if(string == NULL){
+    printf("%s:%d: KO", __FILE__, __LINE__);
+    return;
+  }
   int rc = lpc_call(mem, fun_name, STRING, string, NOP);
   lpc_deconnect(mem);
   if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
@@ -29,17 +32,16 @@ static void test_fun_hello_succes(memory *mem) {
 static void test_fun_hello_failure(memory *mem) {
   char *fun_name = "hello";
   char *cl = "client";
-  size_t len = strlen(cl) + sizeof(pid_t) + 2;
+  size_t len = strlen(cl) + sizeof(pid_t) + 3;
   char s[len];
   snprintf(s, len, "%s%d", cl, getpid());
 
   lpc_string *string = lpc_make_string(s, len);
-
-  int rc = lpc_call(mem, fun_name, STRING, string, NOP);
-
-  if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
-
-  printf("%s\n", string->string);
+  if (string != NULL) {
+    int rc = lpc_call(mem, fun_name, STRING, string, NOP);
+    if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
+  }
+  printf("KO\n");
 }
 
 // exemple de test avec succès
@@ -54,6 +56,7 @@ static void test_fun_print_n_times_succes(memory *mem) {
   lpc_string *string = lpc_make_string(s, len * 10);
 
   int rc = lpc_call(mem, fun_name, INT, &n_times, STRING, string, NOP);
+  lpc_deconnect(mem);
 
   if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
 
@@ -75,7 +78,7 @@ static void test_fun_print_n_times_failure(memory *mem) {
 
   if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
 
-  printf("%s\n", string->string);
+  printf("KO\n");
 }
 
 // exemple de test avec succès
@@ -99,7 +102,14 @@ static void test_fun_divide_double_failure(memory *mem) {
 
   if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
 
-  printf("%lf\n", num);
+  printf("KO\n");
+}
+
+static void test_fun_unknown(memory *mem) {
+  char *fun_name = "fun_unknown";
+  int rc = lpc_call(mem, fun_name, NOP);
+  if (rc == -1) ERREXIT("%s %s\n", "lpc_call", strerror(errno));
+  printf("KO\n");
 }
 
 int main(int argc, char **argv) {
@@ -108,21 +118,23 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  char *shmo_name = start_with_slash(argv[1]);
-  memory *mem = lpc_connect(shmo_name);
+  memory *mem = lpc_open(argv[1]);
+  memory *mem_cl = lpc_connect(mem, argv[1]);
 
- 
-  test_fun_hello_succes(mem);
+  test_fun_hello_succes(mem_cl);
 
-  //test_fun_hello_failure(mem);
- 
-  //test_fun_print_n_times_succes(mem);
- 
-  //test_fun_print_n_times_failure(mem);
+  mem_cl = lpc_connect(mem, argv[1]);
 
-  //test_fun_divide_double_succes(mem);  
+  test_fun_hello_failure(mem_cl);
 
-  //test_fun_divide_double_failure(mem);  
+  // test_fun_print_n_times_succes(mem_cl);
 
+  // test_fun_print_n_times_failure(mem_cl);
+
+  // test_fun_divide_double_succes(mem_cl);
+
+  // test_fun_divide_double_failure(mem_cl);
+
+  // test_fun_unknown(mem_cl);
   return 0;
 }

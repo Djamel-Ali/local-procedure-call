@@ -32,7 +32,7 @@ static void wait_for_call(memory *mem) {
 
 /* Reveiller les clients qui attendent une modification de la mémoire [mem] */
 static void notify_response(memory *mem) {
-  DEBUG("-->notify_response<--\nserver[%d]", getpid());
+  DEBUG("-->notify_response<--server[%d]\n", getpid());
 
   mem->header.res = 1;
   mem->header.call = 0;

@@ -76,11 +76,11 @@ void lpc_init_header(memory *mem) {
 }
 
 void lpc_call_fun(memory *mem) {
-  DEBUG("-->lpc_call_fun<--\nserver[%d] %s\n", getpid(), mem->data.fun_name);
+  DEBUG("-->lpc_call_fun<-- server[%d] : %s\n", getpid(), mem->data.fun_name);
   int (*f)(void *) = lpc_get_fun(mem->data.fun_name);
-  if(f == NULL){
+  if (f == NULL) {
     mem->header.rc = -1;
-    mem->header.er = ENONET;
+    mem->header.er = ENOENT;
     return;
   }
   int rc = f(mem->data.params);
