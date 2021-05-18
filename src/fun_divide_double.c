@@ -1,21 +1,22 @@
 #include "include/fun_divide_double.h"
+
 #include <errno.h>
 #include <string.h>
 
 int divide_double(void *params) {
-    double numerator, res;
-    int denominator;
+  char *p = (char *)params;
+  double numerator, denominator, res;
 
-    memcpy(&numerator, params, sizeof(double));
-    memcpy(&denominator, params + sizeof(double), sizeof(int));
+  memcpy(&numerator, p, sizeof(double));
+  memcpy(&denominator, p + sizeof(double), sizeof(double));
 
-    if (denominator == 0) {
-        errno = EDOM;
-        return -1;
-    }
+  if (denominator == 0) {
+    errno = EDOM;
+    return -1;
+  }
 
-    res = numerator / denominator;
-    memcpy(params, &res, sizeof(double ));
+  res = numerator / denominator;
+  memcpy(params, &res, sizeof(double));
 
-    return 0;
+  return 0;
 }

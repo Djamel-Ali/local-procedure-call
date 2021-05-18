@@ -7,10 +7,12 @@
 
 int print_n_times(void *params) {
     int n;
-    lpc_string *lpc_str = (lpc_string *) (params + sizeof(int));
+    char *p = (char *)params;
 
-    size_t strlen_string = strlen(lpc_str->string) + 1;
-    memcpy(&n, params, sizeof(int));
+    lpc_string *lpc_str = (lpc_string *) params;
+    memcpy(&n, p + (sizeof(lpc_string) + lpc_str->slen), sizeof(int));
+
+    int strlen_string = strlen(lpc_str->string) + 1;
 
     if (n * strlen_string > lpc_str->slen) {
         errno = ENOMEM;
