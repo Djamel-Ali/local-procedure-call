@@ -10,7 +10,7 @@
 #include "include/lpc_utils.h"
 
 // exemple de test avec succès
-static void test_fun_hello_succes(memory *mem) {
+static void test_fun_hello_success(memory *mem) {
   char *fun_name = "hello";
   char *cl = "client";
   size_t len = strlen(cl) + sizeof(pid_t) + 2;
@@ -43,7 +43,7 @@ static void test_fun_hello_failure(memory *mem) {
 }
 
 // exemple de test avec succès
-static void test_fun_print_n_times_succes(memory *mem) {
+static void test_fun_print_n_times_success(memory *mem) {
   char *fun_name = "print_n_times";
   char *cl = "client";
   int n_times = 5;
@@ -79,7 +79,7 @@ static void test_fun_print_n_times_failure(memory *mem) {
 }
 
 // exemple de test avec succès
-static void test_fun_divide_double_succes(memory *mem) {
+static void test_fun_divide_double_success(memory *mem) {
   char *fun_name = "divide_double";
   double num = 4.5, denom = 3;
 
@@ -111,16 +111,16 @@ int main(int argc, char **argv) {
   char *shmo_name = start_with_slash(argv[1]);
   memory *mem = lpc_connect(shmo_name);
 
- 
-  test_fun_hello_succes(mem);
+
+    test_fun_hello_success(mem);
 
   //test_fun_hello_failure(mem);
  
-  //test_fun_print_n_times_succes(mem);
+  //test_fun_print_n_times_success(mem);
  
   //test_fun_print_n_times_failure(mem);
 
-  //test_fun_divide_double_succes(mem);  
+  //test_fun_divide_double_success(mem);
 
   //test_fun_divide_double_failure(mem);  
 
