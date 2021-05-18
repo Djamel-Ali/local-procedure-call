@@ -114,15 +114,15 @@ int main(int argc, char **argv) {
 
     test_fun_hello_success(mem);
 
-  //test_fun_hello_failure(mem);
- 
-  //test_fun_print_n_times_success(mem);
- 
-  //test_fun_print_n_times_failure(mem);
+    //test_fun_hello_failure(mem);
 
-  //test_fun_divide_double_success(mem);
+    //test_fun_print_n_times_success(mem);
 
-  //test_fun_divide_double_failure(mem);  
+    //test_fun_print_n_times_failure(mem);
 
-  return 0;
+    //test_fun_divide_double_success(mem);
+
+    //test_fun_divide_double_failure(mem);
+
+    return 0;
 }
