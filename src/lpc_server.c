@@ -11,13 +11,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "include/fun_divide_double.h"
 #include "include/fun_hello.h"
+#include "include/fun_print_n_times.h"
 #include "include/lpc_sync.h"
 #include "include/lpc_utils.h"
-#include "include/fun_print_n_times.h"
-#include "include/fun_divide_double.h"
 
-static lpc_function FUNCTIONS[] = {{"hello",         hello},
+static lpc_function FUNCTIONS[] = {{"hello", hello},
                                    {"print_n_times", print_n_times},
                                    {"divide_double", divide_double}};
 
@@ -75,7 +75,11 @@ void lpc_init_header(memory *mem) {
 void lpc_call_fun(memory *mem) {
   DEBUG("server[%d]: lpc_call_fun: %s\n", getpid(), mem->data.fun_name);
   int (*f)(void *) = lpc_get_fun(mem->data.fun_name);
-  // TODO test if f is found
+  if(f == NULL){
+    mem->header.rc = -1;
+    mem->header.er = ENONET;
+    return;
+  }
   int rc = f(mem->data.params);
   mem->header.rc = rc;
   if (rc == -1) mem->header.er = errno;
