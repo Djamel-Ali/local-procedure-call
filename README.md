@@ -51,7 +51,13 @@ ce dernier retourne un code d'erreur **ENOENT**.
 * Nous avons mis en place des fonctions de test (dans _tests/_) qui illustrent les cas de succès et d'échec pour chacune.
 Ces fonctions utilisent tous les types proposés dans ce projet.
 
+### License & copyright
+© [Djamel ALI](https://github.com/DjamelALI) & Mamadou Alpha BARRY, Université de Paris
+
+Licensed under the [MIT License](LICENSE).
+
 ### Voir aussi :
 
 - [Auteurs](AUTHORS.md)
 - [Dépôt git (gaufre)](https://gaufre.informatique.univ-paris-diderot.fr/alid/prog-system-av-project)
+
